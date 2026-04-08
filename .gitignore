@@ -1,0 +1,9 @@
+.DS_Store
+.idea/
+.m2/
+
+ui/node_modules/
+ui/dist/
+ui/.vite/
+
+jchatmind/target/
