@@ -1,12 +1,13 @@
 package com.kama.jchatmind.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.ToolResponseMessage;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -39,9 +40,36 @@ public class ChatMessageDTO {
      */
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class MetaData {
-        private ToolResponseMessage.ToolResponse toolResponse;
-        private List<AssistantMessage.ToolCall> toolCalls;
+        private ToolResponsePayload toolResponse;
+        private List<ToolCallPayload> toolCalls;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ToolCallPayload {
+        private String id;
+        private String name;
+        private String arguments;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ToolResponsePayload {
+        private String id;
+        @JsonAlias("toolName")
+        private String name;
+        @JsonAlias("text")
+        private String responseData;
     }
 
     /**
