@@ -21,7 +21,7 @@ public class KnowledgeTools implements Tool {
 
     @Override
     public String getDescription() {
-        return "用于从知识库执行语义检索（RAG）。输入知识库 ID 和查询文本，返回与查询最相关的内容片段。";
+        return "用于从知识库中执行语义检索。";
     }
 
     @Override
@@ -29,9 +29,9 @@ public class KnowledgeTools implements Tool {
         return ToolType.FIXED;
     }
 
-    @org.springframework.ai.tool.annotation.Tool(
+    @dev.langchain4j.agent.tool.Tool(
             name = "KnowledgeTool",
-            description = "从指定知识库中执行相似性检索（RAG）。参数为知识库 ID（kbsId）和查询文本（query），返回与查询最相关的知识片段。"
+            value = "从指定知识库中执行相似度检索。参数为知识库 ID 和查询文本，返回最相关的知识片段。"
     )
     public String knowledgeQuery(String kbsId, String query) {
         List<String> strings = ragService.similaritySearch(kbsId, query);

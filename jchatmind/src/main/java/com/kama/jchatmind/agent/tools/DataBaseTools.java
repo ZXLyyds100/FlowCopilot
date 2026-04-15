@@ -26,7 +26,7 @@ public class DataBaseTools implements Tool {
 
     @Override
     public String getDescription() {
-        return "一个用于执行数据库查询操作的工具，主要用于从 PostgreSQL 中读取数据。";
+        return "用于执行 PostgreSQL 只读查询。";
     }
 
     @Override
@@ -34,23 +34,18 @@ public class DataBaseTools implements Tool {
         return ToolType.OPTIONAL;
     }
 
-    /**
-     * 执行一条 SQL 查询，从数据库中进行查询数据
-     *
-     * @param sql SQL 查询语句（仅支持 SELECT 查询）
-     * @return 格式化的查询结果字符串
-     */
-    @org.springframework.ai.tool.annotation.Tool(name = "databaseQuery", description = "用于在 PostgreSQL 中执行只读查询（SELECT）。接收由模型生成的查询语句，并返回结构化数据结果。该工具仅用于检索数据，严禁任何写入或修改数据库的语句。")
+    @dev.langchain4j.agent.tool.Tool(
+            name = "databaseQuery",
+            value = "在 PostgreSQL 中执行只读 SELECT 查询，返回格式化后的结果。严禁任何写入或修改语句。"
+    )
     public String query(String sql) {
         try {
-            // 验证 SQL 语句安全性（只允许 SELECT 查询）
             String trimmedSql = sql.trim().toUpperCase();
             if (!trimmedSql.startsWith("SELECT")) {
                 log.warn("拒绝执行非 SELECT 查询: {}", sql);
                 return "错误：仅支持 SELECT 查询语句。提供的 SQL: " + sql;
             }
 
-            // 执行查询
             List<String> rows = jdbcTemplate.query(sql, (ResultSet rs) -> {
                 List<String> resultRows = new ArrayList<>();
                 ResultSetMetaData metaData = rs.getMetaData();
@@ -61,7 +56,6 @@ public class DataBaseTools implements Tool {
                     return resultRows;
                 }
 
-                // 获取列名和计算每列的最大宽度
                 List<String> columnNames = new ArrayList<>();
                 List<Integer> columnWidths = new ArrayList<>();
                 for (int i = 1; i <= columnCount; i++) {
@@ -70,7 +64,6 @@ public class DataBaseTools implements Tool {
                     columnWidths.add(columnName.length());
                 }
 
-                // 收集所有行数据并计算列宽
                 List<List<String>> dataRows = new ArrayList<>();
                 while (rs.next()) {
                     List<String> rowData = new ArrayList<>();
@@ -78,7 +71,6 @@ public class DataBaseTools implements Tool {
                         Object value = rs.getObject(i);
                         String valueStr = value == null ? "NULL" : value.toString();
                         rowData.add(valueStr);
-                        // 更新列宽
                         int currentWidth = columnWidths.get(i - 1);
                         if (valueStr.length() > currentWidth) {
                             columnWidths.set(i - 1, valueStr.length());
@@ -87,7 +79,6 @@ public class DataBaseTools implements Tool {
                     dataRows.add(rowData);
                 }
 
-                // 格式化表头
                 StringBuilder header = new StringBuilder();
                 header.append("| ");
                 for (int i = 0; i < columnCount; i++) {
@@ -97,7 +88,6 @@ public class DataBaseTools implements Tool {
                 }
                 resultRows.add(header.toString());
 
-                // 添加分隔线
                 StringBuilder separator = new StringBuilder();
                 separator.append("|");
                 for (int i = 0; i < columnCount; i++) {
@@ -106,7 +96,6 @@ public class DataBaseTools implements Tool {
                 }
                 resultRows.add(separator.toString());
 
-                // 格式化数据行
                 if (dataRows.isEmpty()) {
                     StringBuilder emptyRow = new StringBuilder();
                     emptyRow.append("| ");
@@ -130,16 +119,15 @@ public class DataBaseTools implements Tool {
                 return resultRows;
             });
 
-            int dataRowCount = rows.size() - 2; // 减去表头和分隔线
+            int dataRowCount = rows.size() - 2;
             if (rows.size() > 2 && rows.get(rows.size() - 1).contains("(无数据)")) {
                 dataRowCount = 0;
             }
 
             log.info("成功执行 SQL 查询，返回 {} 行数据", dataRowCount);
-            // 将结果格式化为字符串
             return "查询结果:\n" + String.join("\n", rows);
         } catch (Exception e) {
-            log.error("未知错误: {}", e.getMessage(), e);
+            log.error("数据库查询失败: {}", e.getMessage(), e);
             return "错误：操作失败 - " + e.getMessage() + "\nSQL: " + sql;
         }
     }

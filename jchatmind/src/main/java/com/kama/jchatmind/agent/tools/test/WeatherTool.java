@@ -9,22 +9,21 @@ public class WeatherTool implements Tool {
 
     @Override
     public String getName() {
-        return "weatherTool";
+        return "weather";
     }
 
     @Override
     public String getDescription() {
-        return "获取天气";
+        return "获取天气。";
     }
 
     @Override
     public ToolType getType() {
-        return ToolType.FIXED;
+        return ToolType.OPTIONAL;
     }
 
-    @org.springframework.ai.tool.annotation.Tool(name = "weather", description = "获取天气")
-    public String getWeather(String city, String date) {
-        // 模拟模拟调用天气 API
-        return city + date + "的天气查询结果：晴转多云，温度 25°C，湿度 60%";
+    @dev.langchain4j.agent.tool.Tool(name = "weather", value = "根据城市查询天气。")
+    public String weather(String city) {
+        return city + "：晴，25°C";
     }
 }
