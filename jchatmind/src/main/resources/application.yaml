@@ -29,7 +29,7 @@ flowcopilot:
     providers:
       deepseek:
         enabled: true
-        api-key: ${DEEPSEEK_API_KEY:}
+        api-key: ${DEEPSEEK_API_KEY:sk-44f22531ae9f477c951f75f2327c3d9f}
         base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
         model: ${DEEPSEEK_MODEL:deepseek-chat}
         timeout: 60s

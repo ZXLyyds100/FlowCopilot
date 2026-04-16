@@ -110,6 +110,7 @@ public class WorkflowRuntimeService {
         state.setApprovalRecordId(approval.getId());
         state.setApprovalStatus(ApprovalStatus.APPROVED.name());
         state.setApprovalComment(approval.getComment());
+        state.setRevisionRequest(null);
         state.setApprovalRequired(false);
         updateWorkflow(workflow.getId(), WorkflowStatus.RUNNING.name(), "publish", "审批通过，继续发布");
         workflowEventPublisher.workflowResumed(workflow.getId(), "审批通过，继续执行 Reporter Agent");
@@ -123,6 +124,7 @@ public class WorkflowRuntimeService {
         state.setApprovalRecordId(approval.getId());
         state.setApprovalStatus(ApprovalStatus.REJECTED.name());
         state.setApprovalComment(approval.getComment());
+        state.setRevisionRequest(approval.getComment());
         state.setApprovalRequired(false);
         updateWorkflow(workflow.getId(), WorkflowStatus.RUNNING.name(), "executor", "审批驳回，回退到 Executor Agent 重试");
         workflowEventPublisher.workflowResumed(workflow.getId(), "审批驳回，回退到 Executor Agent 重新生成");
