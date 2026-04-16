@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { message as antdMessage } from "antd";
 import AgentChatHistory from "./agentChatView/AgentChatHistory.tsx";
 import AgentChatInput from "./agentChatView/AgentChatInput.tsx";
@@ -18,10 +18,19 @@ import ChatWorkspaceSidebar from "./agentChatView/ChatWorkspaceSidebar.tsx";
 import EmptyAgentChatView from "./agentChatView/EmptyAgentChatView.tsx";
 import type { ChatMessageVO, SseMessage, SseMessageType } from "../../types";
 
-const AgentChatView: React.FC = () => {
-  const { chatSessionId } = useParams<{ chatSessionId: string }>();
+interface AgentChatViewProps {
+  chatSessionId?: string;
+  locationState?: {
+    init?: boolean;
+    initMessage?: string;
+  } | null;
+}
+
+const AgentChatView: React.FC<AgentChatViewProps> = ({
+  chatSessionId,
+  locationState,
+}) => {
   const navigate = useNavigate();
-  const { state } = useLocation();
   const [loading, setLoading] = useState(false);
   const [isAddAgentModalOpen, setIsAddAgentModalOpen] = useState(false);
   const {
@@ -109,13 +118,13 @@ const AgentChatView: React.FC = () => {
         setLoading(false);
       }
     } else {
-      if (state?.init) {
-        console.log("init", state.initMessage);
+      if (locationState?.init) {
+        console.log("init", locationState.initMessage);
         await createChatMessage({
           agentId: agentId ?? "",
           sessionId: chatSessionId,
           role: "user",
-          content: state.initMessage ?? "",
+          content: locationState.initMessage ?? "",
         });
       } else {
         console.log("ask", message);

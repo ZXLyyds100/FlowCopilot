@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   Typography,
@@ -26,9 +26,14 @@ import KnowledgeBaseWorkspaceSidebar from "./knowledgeBaseView/KnowledgeBaseWork
 
 const { Title, Text, Paragraph } = Typography;
 
-const KnowledgeBaseView: React.FC = () => {
+interface KnowledgeBaseViewProps {
+  knowledgeBaseId?: string;
+}
+
+const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({
+  knowledgeBaseId,
+}) => {
   const navigate = useNavigate();
-  const { knowledgeBaseId } = useParams<{ knowledgeBaseId?: string }>();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const { knowledgeBases, createKnowledgeBaseHandle } = useKnowledgeBases();
   const { documents, loading, refreshDocuments, deleteDocument } =

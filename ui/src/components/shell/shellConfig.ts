@@ -1,3 +1,5 @@
+import { matchPath } from "react-router-dom";
+
 export type ShellModuleKey =
   | "chat"
   | "workflow"
@@ -10,6 +12,13 @@ export interface ShellRouteMatch {
   label: string;
   title: string;
   description: string;
+}
+
+export interface ShellRouteContext {
+  moduleKey: ShellModuleKey;
+  pathname: string;
+  chatSessionId?: string;
+  knowledgeBaseId?: string;
 }
 
 const chatRoute: ShellRouteMatch = {
@@ -68,3 +77,69 @@ export function matchShellRoute(pathname: string): ShellRouteMatch | null {
 }
 
 export const shellRoutes = ROUTES;
+
+export function resolveShellRouteContext(pathname: string): ShellRouteContext | null {
+  if (pathname === "/") {
+    return {
+      moduleKey: "chat",
+      pathname: "/chat",
+    };
+  }
+
+  const agentAliasMatch = matchPath("/agent/:chatSessionId", pathname);
+  if (agentAliasMatch) {
+    return {
+      moduleKey: "chat",
+      pathname,
+      chatSessionId: agentAliasMatch.params.chatSessionId,
+    };
+  }
+
+  const chatMatch = matchPath("/chat/:chatSessionId", pathname);
+  if (chatMatch) {
+    return {
+      moduleKey: "chat",
+      pathname,
+      chatSessionId: chatMatch.params.chatSessionId,
+    };
+  }
+
+  if (pathname === "/chat" || pathname === "/agent") {
+    return {
+      moduleKey: "chat",
+      pathname,
+    };
+  }
+
+  const knowledgeBaseMatch = matchPath("/knowledge-base/:knowledgeBaseId", pathname);
+  if (knowledgeBaseMatch) {
+    return {
+      moduleKey: "knowledge-base",
+      pathname,
+      knowledgeBaseId: knowledgeBaseMatch.params.knowledgeBaseId,
+    };
+  }
+
+  if (pathname === "/knowledge-base") {
+    return {
+      moduleKey: "knowledge-base",
+      pathname,
+    };
+  }
+
+  if (matchesShellPath(pathname, "/workflow")) {
+    return {
+      moduleKey: "workflow",
+      pathname,
+    };
+  }
+
+  if (matchesShellPath(pathname, "/settings")) {
+    return {
+      moduleKey: "settings",
+      pathname,
+    };
+  }
+
+  return null;
+}
