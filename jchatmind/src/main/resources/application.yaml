@@ -19,23 +19,30 @@ spring:
           starttls:
             enable: true
             required: true
-  ai:
-    deepseek:
-      api-key:
-      base-url: https://api.deepseek.com
-      chat:
-        options:
-          model: deepseek-chat
-    zhipuai:
-      api-key:
-      base-url: https://open.bigmodel.cn/api/paas
-      chat:
-        options:
-          model: glm-4.6
 mybatis:
   type-aliases-package: com.kama.jchatmind.model.entity
   mapper-locations: classpath:mapper/*.xml
   type-handlers-package: com.kama.jchatmind.typehandler
+
+jchatmind:
+  llm:
+    providers:
+      deepseek:
+        enabled: true
+        api-key: sk-fc4fe40948fb4e668c3afff3026e5842
+        base-url: https://api.deepseek.com
+        model: deepseek-chat
+        timeout: 60s
+        log-requests: false
+        log-responses: false
+      zhipu:
+        enabled: false
+        api-key:
+        base-url: https://open.bigmodel.cn/api/paas/v4
+        model: glm-4.6
+        timeout: 60s
+        log-requests: false
+        log-responses: false
 
 document:
   storage:

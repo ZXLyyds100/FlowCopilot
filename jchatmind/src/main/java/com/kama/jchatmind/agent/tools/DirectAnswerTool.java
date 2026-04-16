@@ -1,9 +1,6 @@
 package com.kama.jchatmind.agent.tools;
 
-import org.springframework.stereotype.Component;
-
-// 注释 @Component 注解，暂不将 DirectAnswerTool 注册为 Spring Bean
-// @Component
+// 暂不注册为 Spring Bean
 public class DirectAnswerTool implements Tool {
 
     @Override
@@ -13,7 +10,7 @@ public class DirectAnswerTool implements Tool {
 
     @Override
     public String getDescription() {
-        return "当用户的请求不需要执行操作时调用此工具，用以直接返回自然语言回答。";
+        return "用于直接给出最终回答。";
     }
 
     @Override
@@ -21,9 +18,10 @@ public class DirectAnswerTool implements Tool {
         return ToolType.FIXED;
     }
 
-    @org.springframework.ai.tool.annotation.Tool(
+    @dev.langchain4j.agent.tool.Tool(
             name = "directAnswer",
-            description = "用于直接回答用户问题，适用于无需生成任务计划或调用其他工具的场景。"
+            value = "当用户请求不需要额外工具或计划时，调用此工具表示可以直接输出最终回答。"
     )
-    public void directAnswer() {}
+    public void directAnswer() {
+    }
 }

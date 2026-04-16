@@ -12,7 +12,7 @@ public class TerminateTool implements Tool {
 
     @Override
     public String getDescription() {
-        return "跳出 Agent Loop 的工具";
+        return "跳出 Agent Loop 的工具。";
     }
 
     @Override
@@ -20,6 +20,7 @@ public class TerminateTool implements Tool {
         return ToolType.FIXED;
     }
 
-    @org.springframework.ai.tool.annotation.Tool(name = "terminate", description = "如果你觉得当前所有的任务已经执行完毕了，就执行这个工具调用")
-    public void terminate() {}
+    @dev.langchain4j.agent.tool.Tool(name = "terminate", value = "当任务已经执行完毕时调用此工具以结束当前 Agent 循环。")
+    public void terminate() {
+    }
 }
