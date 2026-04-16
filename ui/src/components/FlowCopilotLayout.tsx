@@ -6,6 +6,7 @@ import SettingsPlaceholderView from "./views/SettingsPlaceholderView.tsx";
 import WorkflowView from "./views/WorkflowView.tsx";
 import AppShell from "./shell/AppShell.tsx";
 import { ShellProvider } from "./shell/ShellProvider.tsx";
+import { ShellPageActivityProvider } from "./shell/useShellPage.ts";
 import {
   resolveShellRouteContext,
   type ShellRouteContext,
@@ -90,13 +91,15 @@ function ModulePane({
   children: ReactNode;
 }) {
   return (
-    <div
-      hidden={!active}
-      aria-hidden={!active}
-      className={active ? "flex min-h-0 flex-1 flex-col" : undefined}
-      data-module-active={active ? "true" : "false"}
-    >
-      {children}
-    </div>
+    <ShellPageActivityProvider active={active}>
+      <div
+        hidden={!active}
+        aria-hidden={!active}
+        className={active ? "flex min-h-0 flex-1 flex-col" : undefined}
+        data-module-active={active ? "true" : "false"}
+      >
+        {children}
+      </div>
+    </ShellPageActivityProvider>
   );
 }

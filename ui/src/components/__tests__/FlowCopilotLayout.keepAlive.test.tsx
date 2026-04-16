@@ -1,28 +1,20 @@
 import * as React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Link, MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import FlowCopilotLayout from "../FlowCopilotLayout";
-
-vi.mock("../shell/AppShell.tsx", () => ({
-  default: ({ children }: { children: React.ReactNode }) => (
-    <div>
-      <nav aria-label="主导航">
-        <Link to="/chat">聊天</Link>
-        <Link to="/workflow">工作流</Link>
-        <Link to="/knowledge-base">知识库</Link>
-        <Link to="/settings">设置</Link>
-      </nav>
-      <div>{children}</div>
-    </div>
-  ),
-}));
+import { useShellPage } from "../shell/useShellPage";
 
 vi.mock("../views/AgentChatView.tsx", () => ({
   default: function MockAgentChatView() {
     const [draft, setDraft] = React.useState("");
     const [modalOpen, setModalOpen] = React.useState(false);
+
+    useShellPage({
+      title: "聊天",
+      description: "聊天页命令栏",
+    });
 
     return (
       <section>
@@ -51,6 +43,11 @@ vi.mock("../views/WorkflowView.tsx", () => ({
   default: function MockWorkflowView() {
     const [title, setTitle] = React.useState("");
     const [task, setTask] = React.useState("");
+
+    useShellPage({
+      title: "工作流",
+      description: "工作流页命令栏",
+    });
 
     return (
       <section>
@@ -81,6 +78,11 @@ vi.mock("../views/KnowledgeBaseView.tsx", () => ({
     const [modalOpen, setModalOpen] = React.useState(false);
     const [name, setName] = React.useState("");
 
+    useShellPage({
+      title: "知识库",
+      description: "知识库页命令栏",
+    });
+
     return (
       <section>
         <h1>知识库页</h1>
@@ -106,6 +108,11 @@ vi.mock("../views/KnowledgeBaseView.tsx", () => ({
 
 vi.mock("../views/SettingsPlaceholderView.tsx", () => ({
   default: function MockSettingsPlaceholderView() {
+    useShellPage({
+      title: "设置",
+      description: "设置页命令栏",
+    });
+
     return <h1>设置页</h1>;
   },
 }));
@@ -154,6 +161,20 @@ describe("FlowCopilotLayout keep alive", () => {
 
     expect(screen.getByRole("dialog", { name: "智能体助手" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("长期保活智能体")).toBeInTheDocument();
+  });
+
+  it("updates the shell command bar to match the active module when switching", async () => {
+    const user = userEvent.setup();
+
+    renderAt("/knowledge-base");
+
+    expect(screen.getByRole("heading", { name: "知识库" })).toBeInTheDocument();
+    expect(screen.getByText("知识库页命令栏")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: "工作流" }));
+
+    expect(screen.getByRole("heading", { name: "工作流" })).toBeInTheDocument();
+    expect(screen.getByText("工作流页命令栏")).toBeInTheDocument();
   });
 });
 

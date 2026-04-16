@@ -480,7 +480,7 @@ const WorkflowView: React.FC = () => {
   return (
     <div className="h-full overflow-auto bg-[radial-gradient(circle_at_top_left,#e8f7ff_0,#f6f1e8_34%,#f8fafc_70%)]">
       <div className="mx-auto max-w-[1240px] space-y-4">
-        <Card className="overflow-hidden border-none bg-slate-950 text-white shadow-2xl shadow-slate-200">
+        <Card className="overflow-hidden border-none bg-slate-950 text-white shadow-2xl shadow-slate-200 py-4">
             <div className="absolute -right-20 -top-24 h-56 w-56 rounded-full bg-cyan-400/30 blur-3xl" />
             <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-amber-300/20 blur-3xl" />
             <div className="relative">
@@ -559,8 +559,8 @@ const WorkflowView: React.FC = () => {
                   {currentWorkflow?.input || "创建任务后，系统会按 Graph 模板执行 Planner、Retriever、Executor、Reviewer、Approval、Publisher，并实时展示每个节点的状态、输出与 Trace。"}
                 </Typography.Paragraph>
               </div>
-              <div className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-                <Typography.Text className="!text-slate-300">Graph 进度</Typography.Text>
+              <div className="rounded-3xl border border-white/15 bg-white/12 p-4 backdrop-blur">
+                <Typography.Text className="!text-slate-100">Graph 进度</Typography.Text>
                 <Progress
                   percent={progressPercent}
                   strokeColor={{ "0%": "#22d3ee", "100%": "#facc15" }}
@@ -568,11 +568,11 @@ const WorkflowView: React.FC = () => {
                 />
                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
                   <div className="rounded-2xl bg-white/10 p-3">
-                    <div className="text-slate-400">Trace</div>
+                    <div className="text-slate-200">Trace</div>
                     <div className="font-semibold text-white">{shortId(latestSnapshot?.traceId || traces[0]?.traceId)}</div>
                   </div>
                   <div className="rounded-2xl bg-white/10 p-3">
-                    <div className="text-slate-400">Retry</div>
+                    <div className="text-slate-200">Retry</div>
                     <div className="font-semibold text-white">{latestSnapshot?.retryCount || 0}</div>
                   </div>
                 </div>
@@ -596,7 +596,7 @@ const WorkflowView: React.FC = () => {
               <Card
                 title={<Space><NodeIndexOutlined />Graph 路径与动态路由</Space>}
                 extra={<Tag color="geekblue">{selectedTemplateCode}</Tag>}
-                className="border-none bg-white/90 shadow-xl shadow-slate-200/70"
+                className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
               >
                 <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-5">
                   <div>
@@ -629,7 +629,7 @@ const WorkflowView: React.FC = () => {
                         );
                       })}
                     </div>
-                    <Typography.Text type="secondary">
+                    <Typography.Text className="!text-slate-600">
                       实际路径：{graphPath.length ? graphPath.map((node) => nodeMeta(node).name).join(" -> ") : "等待节点执行"}
                     </Typography.Text>
                   </div>
@@ -648,7 +648,7 @@ const WorkflowView: React.FC = () => {
                               className={`w-full rounded-2xl border p-3 text-left transition ${
                                 selectedTemplateCode === template.code
                                   ? "border-cyan-300 bg-white/10 text-white"
-                                  : "border-white/10 bg-black/10 text-slate-300 hover:border-cyan-200"
+                                  : "border-white/10 bg-black/10 text-slate-200 hover:border-cyan-200"
                               }`}
                               onClick={() => setTemplateCode(template.code)}
                             >
@@ -658,7 +658,7 @@ const WorkflowView: React.FC = () => {
                                   {template.code}
                                 </Tag>
                               </div>
-                              <div className="mt-1 text-xs text-slate-400">
+                              <div className="mt-1 text-xs leading-5 text-slate-300">
                                 {template.description}
                               </div>
                             </button>
@@ -670,7 +670,7 @@ const WorkflowView: React.FC = () => {
                           <CodeOutlined />
                           <Typography.Text className="!text-slate-100">LangGraph4j Mermaid</Typography.Text>
                         </Space>
-                        <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-6 text-cyan-100">
+                        <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-6 text-cyan-50">
                           {selectedTemplate?.mermaid || "Graph definition loading..."}
                         </pre>
                       </div>
@@ -682,7 +682,7 @@ const WorkflowView: React.FC = () => {
               <div className="grid grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)] gap-4">
                 <Card
                   title={<Space><CloudSyncOutlined />实时流式输出</Space>}
-                  className="border-none bg-white/90 shadow-xl shadow-slate-200/70"
+                  className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
                 >
                   {streamStageList.length === 0 ? (
                     <Empty description="等待节点输出" />
@@ -696,13 +696,13 @@ const WorkflowView: React.FC = () => {
                               <Space>
                                 <Avatar className={`bg-gradient-to-br ${meta.tone}`} icon={<ExperimentOutlined />} />
                                 <div>
-                                  <Typography.Text strong>{stage.nodeName}</Typography.Text>
-                                  <div className="text-xs text-slate-500">{meta.role}</div>
+                                  <Typography.Text className="!text-slate-900" strong>{stage.nodeName}</Typography.Text>
+                                  <div className="text-xs text-slate-600">{meta.role}</div>
                                 </div>
                               </Space>
                               <Tag color={statusColor(stage.status)}>{stage.status}</Tag>
                             </div>
-                            <pre className="mb-0 whitespace-pre-wrap font-sans text-[14px] leading-7 text-slate-800">
+                            <pre className="mb-0 whitespace-pre-wrap font-sans text-[14px] leading-8 text-slate-800">
                               {stage.content || "正在思考和执行..."}
                             </pre>
                           </div>
@@ -714,7 +714,7 @@ const WorkflowView: React.FC = () => {
 
                 <Card
                   title={<Space><HistoryOutlined />Trace 时间线</Space>}
-                  className="border-none bg-white/90 shadow-xl shadow-slate-200/70"
+                  className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
                 >
                   {traces.length === 0 ? (
                     <Empty description="暂无 Trace 记录" />
@@ -725,10 +725,10 @@ const WorkflowView: React.FC = () => {
                         children: (
                           <div className="rounded-2xl bg-slate-50 p-3">
                             <div className="mb-1 flex items-center justify-between gap-2">
-                              <Typography.Text strong>{nodeMeta(trace.nodeKey).name}</Typography.Text>
+                              <Typography.Text className="!text-slate-900" strong>{nodeMeta(trace.nodeKey).name}</Typography.Text>
                               <Tag color={traceStatusTone(trace)}>{trace.eventType}</Tag>
                             </div>
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-slate-600">
                               {trace.status} · {trace.durationMs ? `${trace.durationMs}ms` : "pending"} · {shortId(trace.traceId)}
                             </div>
                             {trace.errorMessage && (
@@ -757,9 +757,9 @@ const WorkflowView: React.FC = () => {
               </div>
 
               {currentWorkflow.status === "WAITING_APPROVAL" && (
-                <Card title="人工审批" className="border-none bg-amber-50 shadow-xl shadow-amber-100">
+                <Card title="人工审批" className="border-none bg-amber-50 text-slate-800 shadow-xl shadow-amber-100 [&_.ant-card-head-title]:text-amber-950">
                   <Space direction="vertical" className="w-full" size="middle">
-                    <Typography.Paragraph className="whitespace-pre-wrap">
+                    <Typography.Paragraph className="whitespace-pre-wrap !text-slate-800">
                       {pendingApprovals.find((approval) => approval.id === currentApprovalId)?.summary
                         || latestSnapshot?.reviewComment
                         || "Reviewer 已完成复核，请确认是否进入发布阶段。"}
@@ -780,7 +780,7 @@ const WorkflowView: React.FC = () => {
 
               <Card
                 title={<Space><PlayCircleOutlined />节点状态快照</Space>}
-                className="border-none bg-white/90 shadow-xl shadow-slate-200/70"
+                className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
               >
                 <List
                   dataSource={steps}
@@ -809,7 +809,7 @@ const WorkflowView: React.FC = () => {
                         description={
                           <Space direction="vertical" className="w-full">
                             <Typography.Paragraph
-                              className="mb-0"
+                              className="mb-0 !text-slate-700"
                               ellipsis={{ rows: 3, expandable: true, symbol: "展开" }}
                             >
                               {getStepSummary(step)}
@@ -822,7 +822,7 @@ const WorkflowView: React.FC = () => {
                                   key: "snapshot",
                                   label: "查看节点状态快照",
                                   children: (
-                                    <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-xs text-slate-100">
+                                    <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">
                                       {step.outputSnapshot || step.inputSnapshot || "{}"}
                                     </pre>
                                   ),
@@ -840,14 +840,14 @@ const WorkflowView: React.FC = () => {
               <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-4">
                 <Card
                   title="知识引用与 Reviewer 复核"
-                  className="border-none bg-white/90 shadow-xl shadow-slate-200/70"
+                  className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
                 >
                   {!latestSnapshot ? (
                     <Empty description="暂无节点快照" />
                   ) : (
                     <Space direction="vertical" className="w-full" size="middle">
                       <div>
-                        <Typography.Text strong>Reviewer 结论：</Typography.Text>
+                        <Typography.Text className="!text-slate-900" strong>Reviewer 结论：</Typography.Text>
                         <Tag color={latestSnapshot.review?.passed ? "green" : "orange"} className="ml-2">
                           {latestSnapshot.review?.passed ? "通过" : "待优化"}
                         </Tag>
@@ -855,7 +855,7 @@ const WorkflowView: React.FC = () => {
                           <Tag color="blue">{latestSnapshot.review.score}/100</Tag>
                         )}
                       </div>
-                      <Typography.Paragraph className="whitespace-pre-wrap">
+                      <Typography.Paragraph className="whitespace-pre-wrap !text-slate-700">
                         {latestSnapshot.reviewComment || latestSnapshot.review?.comment || "暂无复核意见"}
                       </Typography.Paragraph>
                       <List
@@ -865,8 +865,8 @@ const WorkflowView: React.FC = () => {
                         locale={{ emptyText: "暂无引用来源" }}
                         renderItem={(source) => (
                           <List.Item>
-                            <Typography.Paragraph className="mb-0">
-                              <Typography.Text strong>
+                            <Typography.Paragraph className="mb-0 !text-slate-700">
+                              <Typography.Text className="!text-slate-900" strong>
                                 [{source.index || "-"}] {source.title || source.sourceType || "引用来源"}：
                               </Typography.Text>
                               {source.content}
@@ -880,14 +880,19 @@ const WorkflowView: React.FC = () => {
 
                 <Card
                   title="最终产物"
-                  className="border-none bg-white/90 shadow-xl shadow-slate-200/70"
+                  className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
                 >
                   {artifacts.length === 0 ? (
                     <Empty description="审批通过并发布后生成产物" />
                   ) : (
                     artifacts.map((artifact) => (
-                      <Card key={artifact.id} type="inner" title={artifact.title} className="mb-4 overflow-hidden">
-                        <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-sm leading-7 text-slate-100">
+                      <Card
+                        key={artifact.id}
+                        type="inner"
+                        title={artifact.title}
+                        className="mb-4 overflow-hidden [&_.ant-card-head-title]:text-slate-900"
+                      >
+                        <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-sm leading-8 text-slate-100">
                           {artifact.content}
                         </pre>
                       </Card>
