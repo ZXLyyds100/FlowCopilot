@@ -8,3 +8,5 @@ ui/dist/
 ui/.vite/
 
 jchatmind/target/
+/.superpowers/
+/.codex/
