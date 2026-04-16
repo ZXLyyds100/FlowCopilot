@@ -1,35 +1,5 @@
 import React, { startTransition, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  Collapse,
-  Empty,
-  Input,
-  List,
-  Progress,
-  Select,
-  Space,
-  Tag,
-  Timeline,
-  Typography,
-  message,
-} from "antd";
-import {
-  ApartmentOutlined,
-  CheckCircleOutlined,
-  CloudSyncOutlined,
-  CodeOutlined,
-  ExperimentOutlined,
-  ForkOutlined,
-  HistoryOutlined,
-  NodeIndexOutlined,
-  PlayCircleOutlined,
-  ReloadOutlined,
-  ThunderboltOutlined,
-} from "@ant-design/icons";
+import { Alert, Card, Empty, message } from "antd";
 import { useShellPage } from "../shell/useShellPage.ts";
 import {
   approveWorkflow,
@@ -50,147 +20,25 @@ import {
 } from "../../api/api.ts";
 import { BASE_URL } from "../../api/http.ts";
 import { useKnowledgeBases } from "../../hooks/useKnowledgeBases.ts";
+import WorkflowCreateCard from "./workflowView/WorkflowCreateCard.tsx";
+import WorkflowGraphCard from "./workflowView/WorkflowGraphCard.tsx";
 import WorkflowInspector from "./workflowView/WorkflowInspector.tsx";
-import WorkflowMarkdown from "./workflowView/WorkflowMarkdown.tsx";
-
-const { TextArea } = Input;
-
-const NODE_ORDER = ["planner", "retriever", "executor", "reviewer", "approval", "publish"];
-
-const NODE_LABELS: Record<string, { name: string; role: string; tone: string }> = {
-  planner: { name: "Planner", role: "任务拆解", tone: "from-sky-500 to-cyan-400" },
-  retriever: { name: "Retriever", role: "知识检索", tone: "from-emerald-500 to-teal-400" },
-  executor: { name: "Executor", role: "内容执行", tone: "from-amber-500 to-orange-400" },
-  reviewer: { name: "Reviewer", role: "质量复核", tone: "from-fuchsia-500 to-rose-400" },
-  approval: { name: "Approval", role: "人工确认", tone: "from-indigo-500 to-violet-400" },
-  publish: { name: "Publisher", role: "产物发布", tone: "from-stone-700 to-stone-500" },
-};
-
-interface WorkflowSource {
-  index?: number;
-  sourceType?: string;
-  title?: string;
-  content?: string;
-}
-
-interface WorkflowReview {
-  score?: number;
-  passed?: boolean;
-  comment?: string;
-  suggestions?: string[];
-}
-
-interface WorkflowStateSnapshot {
-  taskType?: string;
-  plan?: string;
-  retrievedContents?: string[];
-  sources?: WorkflowSource[];
-  draft?: string;
-  draftResult?: string;
-  review?: WorkflowReview;
-  reviewComment?: string;
-  approvalRecordId?: string;
-  approvalStatus?: string;
-  approvalComment?: string;
-  approvalRequired?: boolean;
-  finalOutput?: string;
-  templateCode?: string;
-  traceId?: string;
-  currentNodeKey?: string;
-  graphPath?: string[] | string;
-  retryCount?: number;
-}
-
-interface WorkflowMetadata {
-  knowledgeBaseId?: string;
-  templateCode?: string;
-}
-
-interface WorkflowSseMessage {
-  type: string;
-  payload?: {
-    workflowInstanceId?: string;
-    nodeKey?: string;
-    nodeName?: string;
-    stepStatus?: string;
-    statusText?: string;
-    content?: string;
-    approvalRecordId?: string;
-    approvalStatus?: string;
-    done?: boolean;
-  };
-  metadata?: {
-    stepId?: string;
-    workflowInstanceId?: string;
-    approvalRecordId?: string;
-  };
-}
-
-interface StreamStage {
-  nodeKey: string;
-  nodeName: string;
-  status: string;
-  content: string;
-}
-
-function statusColor(status?: string) {
-  if (status === "COMPLETED" || status === "APPROVED") return "green";
-  if (status === "RUNNING" || status === "STREAMING") return "blue";
-  if (status === "WAITING_APPROVAL" || status === "PENDING") return "orange";
-  if (status === "FAILED" || status === "REJECTED") return "red";
-  if (status === "CREATED") return "default";
-  return "purple";
-}
-
-function parseJson<T>(value?: string): T | null {
-  if (!value) return null;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return null;
-  }
-}
-
-function findLatestSnapshot(steps: WorkflowStepInstanceVO[]) {
-  return [...steps]
-    .reverse()
-    .map((step) => parseJson<WorkflowStateSnapshot>(step.outputSnapshot))
-    .find((snapshot): snapshot is WorkflowStateSnapshot => Boolean(snapshot));
-}
-
-function getStepSummary(step: WorkflowStepInstanceVO) {
-  const snapshot = parseJson<WorkflowStateSnapshot>(step.outputSnapshot);
-  if (!snapshot) return step.errorMessage || step.nodeKey;
-  if (step.nodeKey === "planner") return snapshot.plan || snapshot.taskType || "已生成结构化计划";
-  if (step.nodeKey === "retriever") return `已整理 ${snapshot.sources?.length || 0} 条引用来源`;
-  if (step.nodeKey === "executor") return snapshot.draft || snapshot.draftResult || "已生成初稿";
-  if (step.nodeKey === "reviewer") return snapshot.reviewComment || snapshot.review?.comment || "已完成质量复核";
-  if (step.nodeKey === "approval") return `等待审批：${snapshot.approvalRecordId || "-"}`;
-  if (step.nodeKey === "publish") return "已发布最终 Markdown 产物";
-  return step.nodeKey;
-}
-
-function nodeMeta(nodeKey: string) {
-  return NODE_LABELS[nodeKey] || { name: nodeKey, role: "Graph Node", tone: "from-slate-500 to-slate-400" };
-}
-
-function shortId(value?: string) {
-  if (!value) return "-";
-  return value.length > 12 ? `${value.slice(0, 8)}...${value.slice(-4)}` : value;
-}
-
-function traceStatusTone(trace: ExecutionTraceRefVO) {
-  if (trace.status === "FAILED" || trace.eventType === "NODE_FAILED") return "red";
-  if (trace.status === "RUNNING" || trace.eventType === "NODE_STARTED") return "blue";
-  if (trace.status === "COMPLETED" || trace.eventType === "NODE_COMPLETED") return "green";
-  return "gray";
-}
-
-function normalizeGraphPath(path?: string[] | string) {
-  if (Array.isArray(path)) return path;
-  if (!path) return [];
-  return path.split("->").map((node) => node.trim()).filter(Boolean);
-}
+import WorkflowOverviewCard from "./workflowView/WorkflowOverviewCard.tsx";
+import WorkflowResultsSection from "./workflowView/WorkflowResultsSection.tsx";
+import WorkflowRuntimeSection from "./workflowView/WorkflowRuntimeSection.tsx";
+import type {
+  StreamStage,
+  WorkflowMetadata,
+  WorkflowSseMessage,
+  WorkflowStateSnapshot,
+} from "./workflowView/types.ts";
+import {
+  findLatestSnapshot,
+  nodeMeta,
+  normalizeGraphPath,
+  parseJson,
+  NODE_ORDER,
+} from "./workflowView/utils.ts";
 
 const WorkflowView: React.FC = () => {
   const [taskInput, setTaskInput] = useState("");
@@ -213,14 +61,18 @@ const WorkflowView: React.FC = () => {
   const eventSourceRef = useRef<EventSource | null>(null);
   const { knowledgeBases } = useKnowledgeBases();
 
-  const latestSnapshot = useMemo(() => findLatestSnapshot(steps), [steps]);
+  const latestSnapshot = useMemo<WorkflowStateSnapshot | null>(
+    () => findLatestSnapshot(steps) ?? null,
+    [steps],
+  );
   const workflowMetadata = useMemo(
     () => parseJson<WorkflowMetadata>(currentWorkflow?.metadata),
     [currentWorkflow?.metadata],
   );
   const selectedTemplateCode = latestSnapshot?.templateCode || workflowMetadata?.templateCode || templateCode;
   const selectedTemplate = templates.find((template) => template.code === selectedTemplateCode) || templates[0];
-  const currentApprovalId = latestSnapshot?.approvalRecordId
+  const currentApprovalId =
+    latestSnapshot?.approvalRecordId
     || pendingApprovals.find((approval) => approval.workflowInstanceId === currentWorkflow?.id)?.id;
   const completedStepCount = steps.filter((step) => step.status === "COMPLETED").length;
   const progressPercent = currentWorkflow
@@ -236,13 +88,15 @@ const WorkflowView: React.FC = () => {
     return Array.from(new Set(completedNodes));
   }, [latestSnapshot?.graphPath, traces]);
 
-  const streamStageList = useMemo(() => (
-    Object.values(streamStages).sort((left, right) => {
-      const leftIndex = NODE_ORDER.indexOf(left.nodeKey);
-      const rightIndex = NODE_ORDER.indexOf(right.nodeKey);
-      return (leftIndex === -1 ? 99 : leftIndex) - (rightIndex === -1 ? 99 : rightIndex);
-    })
-  ), [streamStages]);
+  const streamStageList = useMemo(
+    () =>
+      Object.values(streamStages).sort((left, right) => {
+        const leftIndex = NODE_ORDER.indexOf(left.nodeKey);
+        const rightIndex = NODE_ORDER.indexOf(right.nodeKey);
+        return (leftIndex === -1 ? 99 : leftIndex) - (rightIndex === -1 ? 99 : rightIndex);
+      }),
+    [streamStages],
+  );
 
   const refreshWorkflows = async () => {
     const response = await getWorkflows();
@@ -296,11 +150,12 @@ const WorkflowView: React.FC = () => {
         }
 
         if (data.type === "STEP_STARTED" && payload.nodeKey) {
+          const nodeKey = payload.nodeKey;
           setStreamStages((prev) => ({
             ...prev,
-            [payload.nodeKey!]: {
-              nodeKey: payload.nodeKey!,
-              nodeName: payload.nodeName || payload.nodeKey!,
+            [nodeKey]: {
+              nodeKey,
+              nodeName: payload.nodeName || nodeKey,
               status: "RUNNING",
               content: "",
             },
@@ -315,6 +170,7 @@ const WorkflowView: React.FC = () => {
               status: "STREAMING",
               content: "",
             };
+
             return {
               ...prev,
               [payload.nodeKey!]: {
@@ -334,6 +190,7 @@ const WorkflowView: React.FC = () => {
               status: "COMPLETED",
               content: "",
             };
+
             return {
               ...prev,
               [payload.nodeKey!]: {
@@ -380,6 +237,7 @@ const WorkflowView: React.FC = () => {
       message.warning("请输入要执行的任务");
       return;
     }
+
     setLoading(true);
     setStreamStages({});
     setArtifacts([]);
@@ -387,6 +245,7 @@ const WorkflowView: React.FC = () => {
     setTraces([]);
     setExpandedStepSummaries({});
     setLiveStatus("正在创建 Graph 工作流");
+
     try {
       const response = await createWorkflow({
         title: title.trim() || undefined,
@@ -412,9 +271,11 @@ const WorkflowView: React.FC = () => {
       message.warning("当前没有待审批记录");
       return;
     }
+
     if (currentWorkflow && !eventSourceRef.current) {
       connectWorkflowStream(currentWorkflow.id);
     }
+
     await approveWorkflow(currentApprovalId, { comment: approvalComment });
     setApprovalComment("");
     message.success("已通过审批，工作流继续发布");
@@ -429,9 +290,11 @@ const WorkflowView: React.FC = () => {
       message.warning("当前没有待审批记录");
       return;
     }
+
     if (currentWorkflow && !eventSourceRef.current) {
       connectWorkflowStream(currentWorkflow.id);
     }
+
     await rejectWorkflow(currentApprovalId, { comment: approvalComment || "请根据审批意见重新生成" });
     setApprovalComment("");
     message.success("已驳回，工作流回退到 Executor Agent 重试");
@@ -445,6 +308,7 @@ const WorkflowView: React.FC = () => {
     if (!currentWorkflow) return;
     setReplayingNode(nodeKey);
     setLiveStatus(`正在从 ${nodeMeta(nodeKey).name} 节点重放`);
+
     try {
       connectWorkflowStream(currentWorkflow.id);
       await replayWorkflowFromNode(currentWorkflow.id, nodeKey);
@@ -490,448 +354,74 @@ const WorkflowView: React.FC = () => {
   return (
     <div className="h-full overflow-auto bg-[radial-gradient(circle_at_top_left,#e8f7ff_0,#f6f1e8_34%,#f8fafc_70%)]">
       <div className="mx-auto max-w-[1240px] space-y-4">
-        <Card className="overflow-hidden border-none bg-slate-950 text-white shadow-2xl shadow-slate-200 py-4">
-            <div className="absolute -right-20 -top-24 h-56 w-56 rounded-full bg-cyan-400/30 blur-3xl" />
-            <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-amber-300/20 blur-3xl" />
-            <div className="relative">
-              <Space align="center" className="mb-5">
-                <Avatar size={44} className="bg-white text-slate-950" icon={<ForkOutlined />} />
-                <div>
-                  <Typography.Title level={4} className="!mb-0 !text-white">
-                    FlowCopilot Graph Studio
-                  </Typography.Title>
-                  <Typography.Text className="!text-slate-300">第四阶段 · LangGraph4j 工作流驾驶舱</Typography.Text>
-                </div>
-              </Space>
+        <WorkflowCreateCard
+          title={title}
+          taskInput={taskInput}
+          knowledgeBaseId={knowledgeBaseId}
+          templateCode={templateCode}
+          loading={loading}
+          templates={templates}
+          knowledgeBases={knowledgeBases}
+          onTitleChange={setTitle}
+          onTaskInputChange={setTaskInput}
+          onKnowledgeBaseChange={setKnowledgeBaseId}
+          onTemplateCodeChange={setTemplateCode}
+          onCreateWorkflow={handleCreateWorkflow}
+        />
 
-              <Space direction="vertical" className="w-full" size="middle">
-                <Input
-                  size="large"
-                  placeholder="可选：任务标题"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                />
-                <TextArea
-                  rows={7}
-                  placeholder="输入复杂任务，例如：基于知识库整理一份项目答辩介绍，并给出可执行路线"
-                  value={taskInput}
-                  onChange={(event) => setTaskInput(event.target.value)}
-                />
-                <Select
-                  size="large"
-                  value={templateCode}
-                  onChange={setTemplateCode}
-                  options={templates.map((template) => ({
-                    label: `${template.name} · ${template.code}`,
-                    value: template.code,
-                  }))}
-                  placeholder="选择 Graph 模板"
-                />
-                <Select
-                  allowClear
-                  size="large"
-                  placeholder="可选：选择知识库增强"
-                  value={knowledgeBaseId}
-                  onChange={setKnowledgeBaseId}
-                  options={knowledgeBases.map((kb) => ({
-                    label: kb.name,
-                    value: kb.knowledgeBaseId,
-                  }))}
-                />
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<ThunderboltOutlined />}
-                  loading={loading}
-                  onClick={handleCreateWorkflow}
-                  block
-                >
-                  启动 Graph 智能流程
-                </Button>
-              </Space>
-            </div>
+        <WorkflowOverviewCard
+          currentWorkflow={currentWorkflow}
+          latestSnapshot={latestSnapshot}
+          progressPercent={progressPercent}
+          selectedTemplate={selectedTemplate}
+          traces={traces}
+        />
+
+        <Alert
+          type={currentWorkflow?.status === "FAILED" ? "error" : "info"}
+          showIcon
+          message={liveStatus}
+          description={currentWorkflow?.currentStep ? `当前节点：${currentWorkflow.currentStep}` : "等待 Graph 事件"}
+        />
+
+        {!currentWorkflow ? (
+          <Card className="border-none bg-white/90 shadow-xl shadow-slate-200/70">
+            <Empty description="创建或选择一个工作流查看第四阶段 Graph 执行详情" />
           </Card>
-          <Card className="overflow-hidden border-none bg-slate-950 text-white shadow-2xl shadow-slate-300">
-            <div className="absolute right-0 top-0 h-full w-1/2 bg-[radial-gradient(circle_at_top,#22d3ee55,transparent_55%)]" />
-            <div className="relative grid grid-cols-[minmax(0,1fr)_280px] gap-6">
-              <div>
-                <Space className="mb-3">
-                  <Badge status={currentWorkflow?.status === "RUNNING" ? "processing" : "default"} />
-                  <Typography.Text className="!text-cyan-200">
-                    {selectedTemplate?.name || "Graph 工作流"}
-                  </Typography.Text>
-                  <Tag color={statusColor(currentWorkflow?.status)}>{currentWorkflow?.status || "IDLE"}</Tag>
-                </Space>
-                <Typography.Title level={2} className="!mb-3 !text-white">
-                  {currentWorkflow?.title || "实时 Agent Graph 工作台"}
-                </Typography.Title>
-                <Typography.Paragraph className="!mb-0 !text-slate-300">
-                  {currentWorkflow?.input || "创建任务后，系统会按 Graph 模板执行 Planner、Retriever、Executor、Reviewer、Approval、Publisher，并实时展示每个节点的状态、输出与 Trace。"}
-                </Typography.Paragraph>
-              </div>
-              <div className="rounded-3xl border border-white/15 bg-white/12 p-4 backdrop-blur">
-                <Typography.Text className="!text-slate-100">Graph 进度</Typography.Text>
-                <Progress
-                  percent={progressPercent}
-                  strokeColor={{ "0%": "#22d3ee", "100%": "#facc15" }}
-                  trailColor="rgba(255,255,255,0.16)"
-                />
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-2xl bg-white/10 p-3">
-                    <div className="text-slate-200">Trace</div>
-                    <div className="font-semibold text-white">{shortId(latestSnapshot?.traceId || traces[0]?.traceId)}</div>
-                  </div>
-                  <div className="rounded-2xl bg-white/10 p-3">
-                    <div className="text-slate-200">Retry</div>
-                    <div className="font-semibold text-white">{latestSnapshot?.retryCount || 0}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
+        ) : (
+          <>
+            <WorkflowGraphCard
+              currentStep={currentWorkflow.currentStep}
+              graphPath={graphPath}
+              latestSnapshot={latestSnapshot}
+              selectedTemplateCode={selectedTemplateCode}
+              selectedTemplateMermaid={selectedTemplate?.mermaid}
+              setTemplateCode={setTemplateCode}
+              steps={steps}
+              templates={templates}
+            />
 
-          <Alert
-            type={currentWorkflow?.status === "FAILED" ? "error" : "info"}
-            showIcon
-            message={liveStatus}
-            description={currentWorkflow?.currentStep ? `当前节点：${currentWorkflow.currentStep}` : "等待 Graph 事件"}
-          />
+            <WorkflowRuntimeSection
+              approvalComment={approvalComment}
+              currentApprovalId={currentApprovalId}
+              currentWorkflowStatus={currentWorkflow.status}
+              expandedStepSummaries={expandedStepSummaries}
+              latestSnapshot={latestSnapshot}
+              pendingApprovals={pendingApprovals}
+              replayingNode={replayingNode}
+              steps={steps}
+              streamStageList={streamStageList}
+              traces={traces}
+              onApprovalCommentChange={setApprovalComment}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onReplay={handleReplay}
+              onToggleStepSummary={toggleStepSummary}
+            />
 
-          {!currentWorkflow ? (
-            <Card className="border-none bg-white/90 shadow-xl shadow-slate-200/70">
-              <Empty description="创建或选择一个工作流查看第四阶段 Graph 执行详情" />
-            </Card>
-          ) : (
-            <>
-              <Card
-                title={<Space><NodeIndexOutlined />Graph 路径与动态路由</Space>}
-                extra={<Tag color="geekblue">{selectedTemplateCode}</Tag>}
-                className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
-              >
-                <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-5">
-                  <div>
-                    <div className="mb-5 flex flex-wrap items-center gap-3">
-                      {NODE_ORDER.map((nodeKey, index) => {
-                        const meta = nodeMeta(nodeKey);
-                        const step = steps.find((item) => item.nodeKey === nodeKey);
-                        const active = latestSnapshot?.currentNodeKey === nodeKey || currentWorkflow.currentStep === meta.name;
-                        const visited = graphPath.includes(nodeKey) || Boolean(step);
-                        return (
-                          <React.Fragment key={nodeKey}>
-                            <div
-                              className={`min-w-32 rounded-3xl border p-4 transition ${
-                                active
-                                  ? "border-slate-950 bg-slate-950 text-white shadow-xl"
-                                  : visited
-                                    ? "border-cyan-200 bg-cyan-50 text-slate-900"
-                                    : "border-slate-200 bg-white text-slate-500"
-                              }`}
-                            >
-                              <div className={`mb-3 h-2 rounded-full bg-gradient-to-r ${meta.tone}`} />
-                              <div className="font-semibold">{meta.name}</div>
-                              <div className="text-xs opacity-70">{meta.role}</div>
-                              {step && <Tag className="mt-2" color={statusColor(step.status)}>{step.status}</Tag>}
-                            </div>
-                            {index < NODE_ORDER.length - 1 && (
-                              <div className="hidden h-px w-8 bg-slate-300 md:block" />
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </div>
-                    <Typography.Text className="!text-slate-600">
-                      实际路径：{graphPath.length ? graphPath.map((node) => nodeMeta(node).name).join(" -> ") : "等待节点执行"}
-                    </Typography.Text>
-                  </div>
-                  <div className="rounded-3xl bg-slate-950 p-4 text-slate-100">
-                    <Space direction="vertical" className="w-full" size="middle">
-                      <div>
-                        <Space className="mb-3">
-                          <ApartmentOutlined />
-                          <Typography.Text className="!text-slate-100">Graph 模板</Typography.Text>
-                        </Space>
-                        <div className="flex flex-col gap-2">
-                          {templates.map((template) => (
-                            <button
-                              key={template.code}
-                              type="button"
-                              className={`w-full rounded-2xl border p-3 text-left transition ${
-                                selectedTemplateCode === template.code
-                                  ? "border-cyan-300 bg-white/10 text-white"
-                                  : "border-white/10 bg-black/10 text-slate-200 hover:border-cyan-200"
-                              }`}
-                              onClick={() => setTemplateCode(template.code)}
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="font-semibold">{template.name}</span>
-                                <Tag color={selectedTemplateCode === template.code ? "cyan" : "blue"}>
-                                  {template.code}
-                                </Tag>
-                              </div>
-                              <div className="mt-1 text-xs leading-5 text-slate-300">
-                                {template.description}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <Space className="mb-3">
-                          <CodeOutlined />
-                          <Typography.Text className="!text-slate-100">LangGraph4j Mermaid</Typography.Text>
-                        </Space>
-                        <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-6 text-cyan-50">
-                          {selectedTemplate?.mermaid || "Graph definition loading..."}
-                        </pre>
-                      </div>
-                    </Space>
-                  </div>
-                </div>
-              </Card>
-
-              <div className="grid grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)] gap-4">
-                <Card
-                  title={<Space><CloudSyncOutlined />实时流式输出</Space>}
-                  className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
-                >
-                  {streamStageList.length === 0 ? (
-                    <Empty description="等待节点输出" />
-                  ) : (
-                    <Space direction="vertical" className="w-full" size="middle">
-                      {streamStageList.map((stage) => {
-                        const meta = nodeMeta(stage.nodeKey);
-                        return (
-                          <div key={stage.nodeKey} className="rounded-[28px] border border-slate-100 bg-white p-5 shadow-sm">
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                              <Space>
-                                <Avatar className={`bg-gradient-to-br ${meta.tone}`} icon={<ExperimentOutlined />} />
-                                <div>
-                                  <Typography.Text className="!text-slate-900" strong>{stage.nodeName}</Typography.Text>
-                                  <div className="text-xs text-slate-600">{meta.role}</div>
-                                </div>
-                              </Space>
-                              <Tag color={statusColor(stage.status)}>{stage.status}</Tag>
-                            </div>
-                            <WorkflowMarkdown
-                              className="mb-0 text-[14px] leading-8 text-slate-800"
-                              content={stage.content}
-                              placeholder="正在思考和执行..."
-                            />
-                          </div>
-                        );
-                      })}
-                    </Space>
-                  )}
-                </Card>
-
-                <Card
-                  title={<Space><HistoryOutlined />Trace 时间线</Space>}
-                  className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
-                >
-                  {traces.length === 0 ? (
-                    <Empty description="暂无 Trace 记录" />
-                  ) : (
-                    <Timeline
-                      items={traces.map((trace) => ({
-                        color: traceStatusTone(trace),
-                        children: (
-                          <div className="rounded-2xl bg-slate-50 p-3">
-                            <div className="mb-1 flex items-center justify-between gap-2">
-                              <Typography.Text className="!text-slate-900" strong>{nodeMeta(trace.nodeKey).name}</Typography.Text>
-                              <Tag color={traceStatusTone(trace)}>{trace.eventType}</Tag>
-                            </div>
-                            <div className="text-xs text-slate-600">
-                              {trace.status} · {trace.durationMs ? `${trace.durationMs}ms` : "pending"} · {shortId(trace.traceId)}
-                            </div>
-                            {trace.errorMessage && (
-                              <Alert
-                                className="mt-2"
-                                type="error"
-                                message={trace.errorMessage}
-                                action={(
-                                  <Button
-                                    size="small"
-                                    icon={<ReloadOutlined />}
-                                    loading={replayingNode === trace.nodeKey}
-                                    onClick={() => handleReplay(trace.nodeKey)}
-                                  >
-                                    从此重放
-                                  </Button>
-                                )}
-                              />
-                            )}
-                          </div>
-                        ),
-                      }))}
-                    />
-                  )}
-                </Card>
-              </div>
-
-              {currentWorkflow.status === "WAITING_APPROVAL" && (
-                <Card title="人工审批" className="border-none bg-amber-50 text-slate-800 shadow-xl shadow-amber-100 [&_.ant-card-head-title]:text-amber-950">
-                  <Space direction="vertical" className="w-full" size="middle">
-                    <WorkflowMarkdown
-                      className="text-slate-800"
-                      content={pendingApprovals.find((approval) => approval.id === currentApprovalId)?.summary
-                        || latestSnapshot?.reviewComment}
-                      placeholder="Reviewer 已完成复核，请确认是否进入发布阶段。"
-                    />
-                    <TextArea
-                      rows={3}
-                      placeholder="审批意见。驳回时会作为 Executor Agent 重试依据。"
-                      value={approvalComment}
-                      onChange={(event) => setApprovalComment(event.target.value)}
-                    />
-                    <Space>
-                      <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleApprove}>通过并继续发布</Button>
-                      <Button danger onClick={handleReject}>驳回并重新生成</Button>
-                    </Space>
-                  </Space>
-                </Card>
-              )}
-
-              <Card
-                title={<Space><PlayCircleOutlined />节点状态快照</Space>}
-                className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
-              >
-                <List
-                  dataSource={steps}
-                  renderItem={(step) => (
-                    <List.Item
-                      actions={[
-                        <Button
-                          key="replay"
-                          size="small"
-                          icon={<ReloadOutlined />}
-                          loading={replayingNode === step.nodeKey}
-                          onClick={() => handleReplay(step.nodeKey)}
-                        >
-                          从此重放
-                        </Button>,
-                      ]}
-                    >
-                      <List.Item.Meta
-                        avatar={<Avatar className={`bg-gradient-to-br ${nodeMeta(step.nodeKey).tone}`} />}
-                        title={
-                          <Space>
-                            <span>{step.nodeName}</span>
-                            <Tag color={statusColor(step.status)}>{step.status}</Tag>
-                          </Space>
-                        }
-                        description={
-                          <Space direction="vertical" className="w-full">
-                            <div className="w-full">
-                              <div
-                                className={`relative overflow-hidden text-slate-700 ${
-                                  expandedStepSummaries[step.id] ? "" : "max-h-28"
-                                }`}
-                              >
-                                <WorkflowMarkdown content={getStepSummary(step)} />
-                                {!expandedStepSummaries[step.id] && (
-                                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white via-white/90 to-transparent" />
-                                )}
-                              </div>
-                              <Button
-                                type="link"
-                                size="small"
-                                className="mt-1 px-0"
-                                onClick={() => toggleStepSummary(step.id)}
-                              >
-                                {expandedStepSummaries[step.id] ? "收起" : "展开"}
-                              </Button>
-                            </div>
-                            <Collapse
-                              size="small"
-                              ghost
-                              items={[
-                                {
-                                  key: "snapshot",
-                                  label: "查看节点状态快照",
-                                  children: (
-                                    <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">
-                                      {step.outputSnapshot || step.inputSnapshot || "{}"}
-                                    </pre>
-                                  ),
-                                },
-                              ]}
-                            />
-                          </Space>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
-              </Card>
-
-              <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-4">
-                <Card
-                  title="知识引用与 Reviewer 复核"
-                  className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
-                >
-                  {!latestSnapshot ? (
-                    <Empty description="暂无节点快照" />
-                  ) : (
-                    <Space direction="vertical" className="w-full" size="middle">
-                      <div>
-                        <Typography.Text className="!text-slate-900" strong>Reviewer 结论：</Typography.Text>
-                        <Tag color={latestSnapshot.review?.passed ? "green" : "orange"} className="ml-2">
-                          {latestSnapshot.review?.passed ? "通过" : "待优化"}
-                        </Tag>
-                        {typeof latestSnapshot.review?.score === "number" && (
-                          <Tag color="blue">{latestSnapshot.review.score}/100</Tag>
-                        )}
-                      </div>
-                      <WorkflowMarkdown
-                        className="text-slate-700"
-                        content={latestSnapshot.reviewComment || latestSnapshot.review?.comment}
-                        placeholder="暂无复核意见"
-                      />
-                      <List
-                        size="small"
-                        header="引用来源"
-                        dataSource={latestSnapshot.sources || []}
-                        locale={{ emptyText: "暂无引用来源" }}
-                        renderItem={(source) => (
-                          <List.Item>
-                            <Typography.Paragraph className="mb-0 !text-slate-700">
-                              <Typography.Text className="!text-slate-900" strong>
-                                [{source.index || "-"}] {source.title || source.sourceType || "引用来源"}：
-                              </Typography.Text>
-                              {source.content}
-                            </Typography.Paragraph>
-                          </List.Item>
-                        )}
-                      />
-                    </Space>
-                  )}
-                </Card>
-
-                <Card
-                  title="最终产物"
-                  className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
-                >
-                  {artifacts.length === 0 ? (
-                    <Empty description="审批通过并发布后生成产物" />
-                  ) : (
-                    artifacts.map((artifact) => (
-                      <Card
-                        key={artifact.id}
-                        type="inner"
-                        title={artifact.title}
-                        className="mb-4 overflow-hidden [&_.ant-card-head-title]:text-slate-900"
-                      >
-                        <WorkflowMarkdown
-                          className="max-h-[520px] overflow-auto rounded-2xl bg-slate-950 p-4 text-sm leading-8 text-slate-100 [&_code]:bg-white/10 [&_pre]:bg-transparent [&_pre]:p-0 [&_a]:text-cyan-300"
-                          content={artifact.content}
-                        />
-                      </Card>
-                    ))
-                  )}
-                </Card>
-              </div>
-            </>
-          )}
+            <WorkflowResultsSection artifacts={artifacts} latestSnapshot={latestSnapshot} />
+          </>
+        )}
       </div>
     </div>
   );
