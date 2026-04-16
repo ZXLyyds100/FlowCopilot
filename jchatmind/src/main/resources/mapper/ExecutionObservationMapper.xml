@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aliang.flowcopilot.mapper.ExecutionObservationMapper">
+
+    <resultMap id="BaseResultMap" type="aliang.flowcopilot.model.entity.ExecutionObservation">
+        <id property="id" column="id" jdbcType="VARCHAR"/>
+        <result property="runId" column="run_id" jdbcType="VARCHAR"/>
+        <result property="traceId" column="trace_id" jdbcType="VARCHAR"/>
+        <result property="spanId" column="span_id" jdbcType="VARCHAR"/>
+        <result property="parentSpanId" column="parent_span_id" jdbcType="VARCHAR"/>
+        <result property="workflowInstanceId" column="workflow_instance_id" jdbcType="VARCHAR"/>
+        <result property="nodeKey" column="node_key" jdbcType="VARCHAR"/>
+        <result property="spanType" column="span_type" jdbcType="VARCHAR"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="status" column="status" jdbcType="VARCHAR"/>
+        <result property="inputSummary" column="input_summary" jdbcType="VARCHAR"/>
+        <result property="outputSummary" column="output_summary" jdbcType="VARCHAR"/>
+        <result property="errorMessage" column="error_message" jdbcType="VARCHAR"/>
+        <result property="attributesJson" column="attributes_json" jdbcType="VARCHAR"/>
+        <result property="startedAt" column="started_at" jdbcType="TIMESTAMP"/>
+        <result property="endedAt" column="ended_at" jdbcType="TIMESTAMP"/>
+        <result property="durationMs" column="duration_ms" jdbcType="BIGINT"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="aliang.flowcopilot.model.entity.ExecutionObservation">
+        INSERT INTO execution_observation
+        (
+            id,
+            run_id,
+            trace_id,
+            span_id,
+            parent_span_id,
+            workflow_instance_id,
+            node_key,
+            span_type,
+            name,
+            status,
+            input_summary,
+            output_summary,
+            error_message,
+            attributes_json,
+            started_at,
+            ended_at,
+            duration_ms,
+            created_at,
+            updated_at
+        )
+        VALUES
+        (
+            CAST(#{id} AS uuid),
+            #{runId},
+            #{traceId},
+            #{spanId},
+            #{parentSpanId},
+            CAST(#{workflowInstanceId} AS uuid),
+            #{nodeKey},
+            #{spanType},
+            #{name},
+            #{status},
+            #{inputSummary},
+            #{outputSummary},
+            #{errorMessage},
+            CAST(#{attributesJson} AS jsonb),
+            #{startedAt},
+            #{endedAt},
+            #{durationMs},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <update id="updateById" parameterType="aliang.flowcopilot.model.entity.ExecutionObservation">
+        UPDATE execution_observation
+        <set>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="outputSummary != null">
+                output_summary = #{outputSummary},
+            </if>
+            <if test="errorMessage != null">
+                error_message = #{errorMessage},
+            </if>
+            <if test="attributesJson != null">
+                attributes_json = CAST(#{attributesJson} AS jsonb),
+            </if>
+            <if test="endedAt != null">
+                ended_at = #{endedAt},
+            </if>
+            <if test="durationMs != null">
+                duration_ms = #{durationMs},
+            </if>
+            updated_at = NOW()
+        </set>
+        WHERE id = CAST(#{id} AS uuid)
+    </update>
+
+    <select id="selectByWorkflowInstanceId" resultMap="BaseResultMap">
+        SELECT id,
+               run_id,
+               trace_id,
+               span_id,
+               parent_span_id,
+               workflow_instance_id,
+               node_key,
+               span_type,
+               name,
+               status,
+               input_summary,
+               output_summary,
+               error_message,
+               attributes_json::text AS attributes_json,
+               started_at,
+               ended_at,
+               duration_ms,
+               created_at,
+               updated_at
+        FROM execution_observation
+        WHERE workflow_instance_id = CAST(#{workflowInstanceId} AS uuid)
+        ORDER BY created_at ASC, started_at ASC
+    </select>
+</mapper>
