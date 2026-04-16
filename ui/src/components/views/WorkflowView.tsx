@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, Empty, Input, List, Select, Space, Tag, Typography, message } from "antd";
+import { Button, Card, Collapse, Empty, Input, List, Select, Space, Tag, Typography, message } from "antd";
 import {
   createWorkflow,
   getWorkflow,
@@ -12,12 +12,65 @@ import { useKnowledgeBases } from "../../hooks/useKnowledgeBases.ts";
 
 const { TextArea } = Input;
 
+interface WorkflowSource {
+  index?: number;
+  sourceType?: string;
+  title?: string;
+  content?: string;
+}
+
+interface WorkflowReview {
+  score?: number;
+  passed?: boolean;
+  comment?: string;
+  suggestions?: string[];
+}
+
+interface WorkflowStateSnapshot {
+  taskType?: string;
+  plan?: string;
+  retrievedContents?: string[];
+  sources?: WorkflowSource[];
+  draft?: string;
+  draftResult?: string;
+  review?: WorkflowReview;
+  reviewComment?: string;
+  finalOutput?: string;
+}
+
 function statusColor(status?: string) {
   if (status === "COMPLETED") return "green";
   if (status === "RUNNING") return "blue";
   if (status === "FAILED") return "red";
   if (status === "CREATED" || status === "PENDING") return "default";
   return "purple";
+}
+
+function parseSnapshot(snapshot?: string): WorkflowStateSnapshot | null {
+  if (!snapshot) return null;
+  try {
+    return JSON.parse(snapshot) as WorkflowStateSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+function getStepSummary(step: WorkflowStepInstanceVO) {
+  const snapshot = parseSnapshot(step.outputSnapshot);
+  if (!snapshot) return step.errorMessage || step.nodeKey;
+  if (step.nodeKey === "planner") return snapshot.taskType || "已生成结构化计划";
+  if (step.nodeKey === "retriever") return `已整理 ${snapshot.sources?.length || 0} 条引用来源`;
+  if (step.nodeKey === "executor") return snapshot.draft || snapshot.draftResult || "已生成初稿";
+  if (step.nodeKey === "reviewer") return snapshot.reviewComment || snapshot.review?.comment || "已完成质量复核";
+  if (step.nodeKey === "publish") return "已发布最终 Markdown 产物";
+  return step.nodeKey;
+}
+
+function findLatestSnapshot(steps: WorkflowStepInstanceVO[]) {
+  return [...steps]
+    .reverse()
+    .map((step) => parseSnapshot(step.outputSnapshot))
+    .find((snapshot): snapshot is WorkflowStateSnapshot => Boolean(snapshot));
 }
 
 const WorkflowView: React.FC = () => {
@@ -100,7 +153,7 @@ const WorkflowView: React.FC = () => {
                 }))}
               />
               <Button type="primary" loading={loading} onClick={handleCreateWorkflow} block>
-                创建并执行第一阶段工作流
+                创建并执行第二阶段协作工作流
               </Button>
             </Space>
           </Card>
@@ -135,6 +188,9 @@ const WorkflowView: React.FC = () => {
               <Empty description="创建或选择一个工作流查看执行详情" />
             </Card>
           ) : (
+            (() => {
+              const latestSnapshot = findLatestSnapshot(steps);
+              return (
             <>
               <Card
                 title={currentWorkflow.title}
@@ -147,6 +203,10 @@ const WorkflowView: React.FC = () => {
                 <Typography.Paragraph>
                   <Typography.Text strong>当前节点：</Typography.Text>
                   {currentWorkflow.currentStep || "-"}
+                </Typography.Paragraph>
+                <Typography.Paragraph>
+                  <Typography.Text strong>任务类型：</Typography.Text>
+                  {latestSnapshot?.taskType || "-"}
                 </Typography.Paragraph>
               </Card>
 
@@ -162,11 +222,72 @@ const WorkflowView: React.FC = () => {
                             <Tag color={statusColor(step.status)}>{step.status}</Tag>
                           </Space>
                         }
-                        description={step.errorMessage || step.nodeKey}
+                        description={
+                          <Space direction="vertical" className="w-full">
+                            <Typography.Paragraph
+                              className="mb-0"
+                              ellipsis={{ rows: 3, expandable: true, symbol: "展开" }}
+                            >
+                              {getStepSummary(step)}
+                            </Typography.Paragraph>
+                            <Collapse
+                              size="small"
+                              ghost
+                              items={[
+                                {
+                                  key: "snapshot",
+                                  label: "查看节点状态快照",
+                                  children: (
+                                    <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded bg-slate-900 p-3 text-xs text-slate-100">
+                                      {step.outputSnapshot || "{}"}
+                                    </pre>
+                                  ),
+                                },
+                              ]}
+                            />
+                          </Space>
+                        }
                       />
                     </List.Item>
                   )}
                 />
+              </Card>
+
+              <Card title="知识引用与 Reviewer 复核">
+                {!latestSnapshot ? (
+                  <Empty description="暂无节点快照" />
+                ) : (
+                  <Space direction="vertical" className="w-full" size="middle">
+                    <div>
+                      <Typography.Text strong>Reviewer 结论：</Typography.Text>
+                      <Tag color={latestSnapshot.review?.passed ? "green" : "orange"} className="ml-2">
+                        {latestSnapshot.review?.passed ? "通过" : "待优化"}
+                      </Tag>
+                      {typeof latestSnapshot.review?.score === "number" && (
+                        <Tag color="blue">{latestSnapshot.review.score}/100</Tag>
+                      )}
+                    </div>
+                    <Typography.Paragraph className="whitespace-pre-wrap">
+                      {latestSnapshot.reviewComment || latestSnapshot.review?.comment || "暂无复核意见"}
+                    </Typography.Paragraph>
+                    <List
+                      size="small"
+                      header="引用来源"
+                      dataSource={latestSnapshot.sources || []}
+                      locale={{ emptyText: "暂无引用来源" }}
+                      renderItem={(source) => (
+                        <List.Item>
+                          <Typography.Paragraph className="mb-0">
+                            <Typography.Text strong>
+                              [{source.index || "-"}] {source.title || source.sourceType || "引用来源"}：
+                            </Typography.Text>
+                            {source.content}
+                          </Typography.Paragraph>
+                        </List.Item>
+                      )}
+                    />
+                  </Space>
+                )}
               </Card>
 
               <Card title="产物">
@@ -183,6 +304,8 @@ const WorkflowView: React.FC = () => {
                 )}
               </Card>
             </>
+              );
+            })()
           )}
         </div>
       </div>

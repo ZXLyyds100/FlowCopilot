@@ -1,15 +1,26 @@
 package aliang.flowcopilot.workflow.node;
 
+import aliang.flowcopilot.workflow.agent.AgentRoleService;
+import aliang.flowcopilot.workflow.agent.WorkflowAgentProfile;
+import aliang.flowcopilot.workflow.agent.WorkflowAgentRole;
+import aliang.flowcopilot.workflow.ai.StructuredOutputService;
+import aliang.flowcopilot.workflow.state.WorkflowSource;
 import aliang.flowcopilot.workflow.state.WorkflowState;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.stream.Collectors;
 
 /**
- * Produces the main first-stage task draft from plan and retrieved context.
+ * Produces the main second-stage task draft from plan and retrieved context.
  */
 @Component
+@AllArgsConstructor
 public class ExecutorNode implements WorkflowNode {
+
+    private final AgentRoleService agentRoleService;
+    private final StructuredOutputService structuredOutputService;
+
     @Override
     public String key() {
         return "executor";
@@ -17,29 +28,46 @@ public class ExecutorNode implements WorkflowNode {
 
     @Override
     public String name() {
-        return "Executor";
+        return "Executor Agent";
     }
 
     @Override
     public WorkflowState execute(WorkflowState state) {
-        String context = state.safeRetrievedContents()
+        String context = state.safeSources()
                 .stream()
-                .map(item -> "- " + item)
+                .map(this::formatSource)
                 .collect(Collectors.joining("\n"));
-        String draft = """
+        String fallback = """
                 ## 任务理解
+                %s
+
+                ## 任务类型
                 %s
 
                 ## 执行计划
                 %s
 
-                ## 参考上下文
+                ## 知识引用
                 %s
 
-                ## 初步结果
-                已根据任务目标、计划和可用上下文生成第一阶段可交付结果。后续阶段可接入 Reviewer、Approval 与 LangGraph4j 条件路由增强。
-                """.formatted(state.getUserInput(), state.getPlan(), context);
+                ## 初稿
+                已基于 Planner Agent 的计划和 Retriever Agent 的引用资料生成第二阶段协作初稿。
+                后续由 Reviewer Agent 复核质量，并由 Reporter Agent 整理最终产物。
+                """.formatted(state.getUserInput(), state.getTaskType(), state.getPlan(), context);
+        WorkflowAgentProfile profile = agentRoleService.getProfile(WorkflowAgentRole.EXECUTOR);
+        String draft = structuredOutputService.generateOrFallback(profile, """
+                用户任务：%s
+                任务类型：%s
+                执行计划：%s
+                知识引用：%s
+                请生成一份结构完整、可被 Reviewer 复核的初稿。
+                """.formatted(state.getUserInput(), state.getTaskType(), state.getPlan(), context), fallback);
+        state.setDraft(draft.strip());
         state.setDraftResult(draft.strip());
         return state;
+    }
+
+    private String formatSource(WorkflowSource source) {
+        return "- [%d] %s：%s".formatted(source.getIndex(), source.getTitle(), source.getContent());
     }
 }

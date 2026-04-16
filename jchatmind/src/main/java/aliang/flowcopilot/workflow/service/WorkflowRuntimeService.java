@@ -115,16 +115,24 @@ public class WorkflowRuntimeService {
                 completeStep(step.getId(), outputState);
                 state = outputState;
             } catch (Exception e) {
+                String errorMessage = resolveErrorMessage(e);
                 failStep(step.getId(), e);
-                updateWorkflow(workflowInstance.getId(), WorkflowStatus.FAILED.name(), node.key(), e.getMessage());
-                throw new BizException("工作流节点执行失败: " + node.name() + ", " + e.getMessage());
+                updateWorkflow(workflowInstance.getId(), WorkflowStatus.FAILED.name(), node.key(), errorMessage);
+                throw new BizException("工作流节点执行失败: " + node.name() + ", " + errorMessage);
             }
         }
         updateWorkflow(workflowInstance.getId(), WorkflowStatus.COMPLETED.name(), "finished", state.getFinalOutput());
     }
 
+    private String resolveErrorMessage(Exception e) {
+        if (StringUtils.hasText(e.getMessage())) {
+            return e.getMessage();
+        }
+        return e.getClass().getSimpleName();
+    }
+
     private List<WorkflowNode> orderedNodes() {
-        List<String> order = List.of("planner", "retriever", "executor", "publish");
+        List<String> order = List.of("planner", "retriever", "executor", "reviewer", "publish");
         return workflowNodes.stream()
                 .filter(node -> order.contains(node.key()))
                 .sorted(Comparator.comparingInt(node -> order.indexOf(node.key())))

@@ -1,5 +1,6 @@
 package aliang.flowcopilot.model.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.Data;
 
 /**
@@ -8,6 +9,9 @@ import lombok.Data;
 @Data
 public class CreateWorkflowRequest {
     private String title;
+
+    @JsonAlias("userRequirement")
     private String input;
+
     private String knowledgeBaseId;
 }

@@ -1,21 +1,28 @@
 package aliang.flowcopilot.workflow.node;
 
-import aliang.flowcopilot.service.RagService;
+import aliang.flowcopilot.workflow.agent.AgentRoleService;
+import aliang.flowcopilot.workflow.agent.WorkflowAgentProfile;
+import aliang.flowcopilot.workflow.agent.WorkflowAgentRole;
+import aliang.flowcopilot.workflow.ai.StructuredOutputService;
+import aliang.flowcopilot.workflow.rag.RetrieverService;
+import aliang.flowcopilot.workflow.state.WorkflowSource;
 import aliang.flowcopilot.workflow.state.WorkflowState;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Retrieves optional knowledge context for the workflow.
+ * Retrieves knowledge context for the workflow.
  */
 @Component
 @AllArgsConstructor
 public class RetrieverNode implements WorkflowNode {
 
-    private final RagService ragService;
+    private final RetrieverService retrieverService;
+    private final AgentRoleService agentRoleService;
+    private final StructuredOutputService structuredOutputService;
 
     @Override
     public String key() {
@@ -24,23 +31,43 @@ public class RetrieverNode implements WorkflowNode {
 
     @Override
     public String name() {
-        return "Retriever";
+        return "Retriever Agent";
     }
 
     @Override
     public WorkflowState execute(WorkflowState state) {
-        if (!StringUtils.hasText(state.getKnowledgeBaseId())) {
-            state.setRetrievedContents(List.of("未指定知识库，本轮使用用户输入和通用流程模板执行。"));
-            return state;
-        }
+        List<WorkflowSource> sources;
         try {
-            List<String> results = ragService.similaritySearch(state.getKnowledgeBaseId(), state.getUserInput());
-            state.setRetrievedContents(results.isEmpty()
-                    ? List.of("知识库未召回相关内容。")
-                    : results);
+            sources = retrieverService.retrieve(state.getKnowledgeBaseId(), state.getUserInput());
         } catch (Exception e) {
-            state.setRetrievedContents(List.of("知识检索暂不可用：" + e.getMessage()));
+            sources = retrieverService.retrievalFailedSource(e);
         }
+        state.setSources(sources);
+        List<String> retrievedContents = new ArrayList<>(sources.stream()
+                .map(WorkflowSource::getContent)
+                .toList());
+        state.setRetrievedContents(retrievedContents);
+
+        WorkflowAgentProfile profile = agentRoleService.getProfile(WorkflowAgentRole.RETRIEVER);
+        String retrievalSummary = structuredOutputService.generateOrFallback(profile, """
+                用户任务：%s
+                任务类型：%s
+                执行计划：%s
+                召回资料：%s
+                请总结这些资料如何支撑后续生成。
+                """.formatted(state.getUserInput(), state.getTaskType(), state.getPlan(), state.getRetrievedContents()),
+                """
+                ## 目标理解
+                需要为后续生成提供可引用上下文。
+
+                ## 关键依据
+                %s
+
+                ## 结构化结果
+                已整理 %d 条可用资料，后续 Executor Agent 应优先基于这些资料生成初稿。
+                """.formatted(String.join("\n", state.safeRetrievedContents()), state.safeRetrievedContents().size()).strip());
+        retrievedContents.add(0, retrievalSummary);
+        state.setRetrievedContents(retrievedContents);
         return state;
     }
 }
