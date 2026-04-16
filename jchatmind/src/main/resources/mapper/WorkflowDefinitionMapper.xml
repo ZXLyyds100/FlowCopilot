@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aliang.flowcopilot.mapper.WorkflowDefinitionMapper">
+
+    <resultMap id="BaseResultMap" type="aliang.flowcopilot.model.entity.WorkflowDefinition">
+        <id property="id" column="id" jdbcType="VARCHAR"/>
+        <result property="code" column="code" jdbcType="VARCHAR"/>
+        <result property="name" column="name" jdbcType="VARCHAR"/>
+        <result property="description" column="description" jdbcType="VARCHAR"/>
+        <result property="definition" column="definition" jdbcType="VARCHAR"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="aliang.flowcopilot.model.entity.WorkflowDefinition"
+            keyColumn="id" keyProperty="id" useGeneratedKeys="true">
+        INSERT INTO workflow_definition
+        (
+            code,
+            name,
+            description,
+            definition,
+            created_at,
+            updated_at
+        )
+        VALUES
+        (
+            #{code},
+            #{name},
+            #{description},
+            CAST(#{definition} AS jsonb),
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id,
+               code,
+               name,
+               description,
+               definition::text AS definition,
+               created_at,
+               updated_at
+        FROM workflow_definition
+        WHERE id = CAST(#{id} AS uuid)
+    </select>
+
+    <select id="selectByCode" resultMap="BaseResultMap">
+        SELECT id,
+               code,
+               name,
+               description,
+               definition::text AS definition,
+               created_at,
+               updated_at
+        FROM workflow_definition
+        WHERE code = #{code}
+        LIMIT 1
+    </select>
+</mapper>

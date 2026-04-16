@@ -10,7 +10,7 @@
 
 如果你希望最快理解系统运行方式，建议按下面的顺序阅读：
 
-1. `JchatmindApplication.java`
+1. `FlowCopilotApplication.java`
 2. `controller/ChatMessageController.java`
 3. `service/impl/ChatMessageFacadeServiceImpl.java`
 4. `event/ChatEvent.java`
@@ -25,7 +25,7 @@
 
 ## 2. 启动与基础配置
 
-- `JchatmindApplication.java`: Spring Boot 启动入口，负责拉起整个应用。
+- `FlowCopilotApplication.java`: Spring Boot 启动入口，负责拉起整个应用。
 - `config/AsyncConfig.java`: 配置异步线程池，给聊天事件监听和 Agent 异步执行使用。
 - `config/ChatClientRegistry.java`: 维护所有可用的 `ChatClient`，按模型名查找。
 - `config/CorsConfig.java`: 配置跨域访问规则，允许本地前端访问后端接口和 SSE。

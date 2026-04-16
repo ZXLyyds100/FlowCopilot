@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aliang.flowcopilot.mapper.WorkflowInstanceMapper">
+
+    <resultMap id="BaseResultMap" type="aliang.flowcopilot.model.entity.WorkflowInstance">
+        <id property="id" column="id" jdbcType="VARCHAR"/>
+        <result property="definitionId" column="definition_id" jdbcType="VARCHAR"/>
+        <result property="title" column="title" jdbcType="VARCHAR"/>
+        <result property="input" column="input" jdbcType="VARCHAR"/>
+        <result property="status" column="status" jdbcType="VARCHAR"/>
+        <result property="currentStep" column="current_step" jdbcType="VARCHAR"/>
+        <result property="result" column="result" jdbcType="VARCHAR"/>
+        <result property="metadata" column="metadata" jdbcType="VARCHAR"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="aliang.flowcopilot.model.entity.WorkflowInstance"
+            keyColumn="id" keyProperty="id" useGeneratedKeys="true">
+        INSERT INTO workflow_instance
+        (
+            definition_id,
+            title,
+            input,
+            status,
+            current_step,
+            result,
+            metadata,
+            created_at,
+            updated_at
+        )
+        VALUES
+        (
+            <choose>
+                <when test="definitionId != null">CAST(#{definitionId} AS uuid)</when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            #{title},
+            #{input},
+            #{status},
+            #{currentStep},
+            #{result},
+            CAST(#{metadata} AS jsonb),
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id,
+               definition_id,
+               title,
+               input,
+               status,
+               current_step,
+               result,
+               metadata::text AS metadata,
+               created_at,
+               updated_at
+        FROM workflow_instance
+        WHERE id = CAST(#{id} AS uuid)
+    </select>
+
+    <select id="selectRecent" resultMap="BaseResultMap">
+        SELECT id,
+               definition_id,
+               title,
+               input,
+               status,
+               current_step,
+               result,
+               metadata::text AS metadata,
+               created_at,
+               updated_at
+        FROM workflow_instance
+        ORDER BY created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="updateById" parameterType="aliang.flowcopilot.model.entity.WorkflowInstance">
+        UPDATE workflow_instance
+        <set>
+            <if test="definitionId != null">
+                definition_id = CAST(#{definitionId} AS uuid),
+            </if>
+            <if test="title != null">
+                title = #{title},
+            </if>
+            <if test="input != null">
+                input = #{input},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="currentStep != null">
+                current_step = #{currentStep},
+            </if>
+            <if test="result != null">
+                result = #{result},
+            </if>
+            <if test="metadata != null">
+                metadata = CAST(#{metadata} AS jsonb),
+            </if>
+            updated_at = NOW()
+        </set>
+        WHERE id = CAST(#{id} AS uuid)
+    </update>
+</mapper>

@@ -1,8 +1,8 @@
 spring:
   application:
-    name: jchatmind
+    name: flowcopilot
   datasource:
-    url: jdbc:postgresql://localhost:5432/jchatmind
+    url: jdbc:postgresql://localhost:5432/flowcopilot
     username: root
     password: root
     driver-class-name: org.postgresql.Driver
@@ -20,11 +20,11 @@ spring:
             enable: true
             required: true
 mybatis:
-  type-aliases-package: com.kama.jchatmind.model.entity
+  type-aliases-package: aliang.flowcopilot.model.entity
   mapper-locations: classpath:mapper/*.xml
-  type-handlers-package: com.kama.jchatmind.typehandler
+  type-handlers-package: aliang.flowcopilot.typehandler
 
-jchatmind:
+flowcopilot:
   llm:
     providers:
       deepseek:

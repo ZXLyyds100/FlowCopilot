@@ -8,11 +8,11 @@
         <version>3.5.10</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.kama</groupId>
-    <artifactId>jchatmind</artifactId>
+    <groupId>aliang</groupId>
+    <artifactId>flowcopilot</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>jchatmind</name>
-    <description>jchatmind</description>
+    <name>flowcopilot</name>
+    <description>FlowCopilot AI multi-agent execution platform</description>
     <url/>
     <licenses>
         <license/>

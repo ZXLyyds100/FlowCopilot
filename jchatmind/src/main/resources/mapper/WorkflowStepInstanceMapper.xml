@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aliang.flowcopilot.mapper.WorkflowStepInstanceMapper">
+
+    <resultMap id="BaseResultMap" type="aliang.flowcopilot.model.entity.WorkflowStepInstance">
+        <id property="id" column="id" jdbcType="VARCHAR"/>
+        <result property="workflowInstanceId" column="workflow_instance_id" jdbcType="VARCHAR"/>
+        <result property="nodeKey" column="node_key" jdbcType="VARCHAR"/>
+        <result property="nodeName" column="node_name" jdbcType="VARCHAR"/>
+        <result property="status" column="status" jdbcType="VARCHAR"/>
+        <result property="inputSnapshot" column="input_snapshot" jdbcType="VARCHAR"/>
+        <result property="outputSnapshot" column="output_snapshot" jdbcType="VARCHAR"/>
+        <result property="errorMessage" column="error_message" jdbcType="VARCHAR"/>
+        <result property="startedAt" column="started_at" jdbcType="TIMESTAMP"/>
+        <result property="completedAt" column="completed_at" jdbcType="TIMESTAMP"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="aliang.flowcopilot.model.entity.WorkflowStepInstance"
+            keyColumn="id" keyProperty="id" useGeneratedKeys="true">
+        INSERT INTO workflow_step_instance
+        (
+            workflow_instance_id,
+            node_key,
+            node_name,
+            status,
+            input_snapshot,
+            output_snapshot,
+            error_message,
+            started_at,
+            completed_at,
+            created_at,
+            updated_at
+        )
+        VALUES
+        (
+            CAST(#{workflowInstanceId} AS uuid),
+            #{nodeKey},
+            #{nodeName},
+            #{status},
+            CAST(#{inputSnapshot} AS jsonb),
+            CAST(#{outputSnapshot} AS jsonb),
+            #{errorMessage},
+            #{startedAt},
+            #{completedAt},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <select id="selectByWorkflowInstanceId" resultMap="BaseResultMap">
+        SELECT id,
+               workflow_instance_id,
+               node_key,
+               node_name,
+               status,
+               input_snapshot::text AS input_snapshot,
+               output_snapshot::text AS output_snapshot,
+               error_message,
+               started_at,
+               completed_at,
+               created_at,
+               updated_at
+        FROM workflow_step_instance
+        WHERE workflow_instance_id = CAST(#{workflowInstanceId} AS uuid)
+        ORDER BY created_at ASC
+    </select>
+
+    <update id="updateById" parameterType="aliang.flowcopilot.model.entity.WorkflowStepInstance">
+        UPDATE workflow_step_instance
+        <set>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="outputSnapshot != null">
+                output_snapshot = CAST(#{outputSnapshot} AS jsonb),
+            </if>
+            <if test="errorMessage != null">
+                error_message = #{errorMessage},
+            </if>
+            <if test="startedAt != null">
+                started_at = #{startedAt},
+            </if>
+            <if test="completedAt != null">
+                completed_at = #{completedAt},
+            </if>
+            updated_at = NOW()
+        </set>
+        WHERE id = CAST(#{id} AS uuid)
+    </update>
+</mapper>

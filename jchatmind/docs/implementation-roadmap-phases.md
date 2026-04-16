@@ -26,11 +26,11 @@
 
 当前核心代码：
 
-- [JChatMind.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/com/kama/jchatmind/agent/JChatMind.java)
-- [JChatMindFactory.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/com/kama/jchatmind/agent/JChatMindFactory.java)
-- [ChatEventListener.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/com/kama/jchatmind/event/listener/ChatEventListener.java)
-- [RagServiceImpl.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/com/kama/jchatmind/service/impl/RagServiceImpl.java)
-- [SseServiceImpl.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/com/kama/jchatmind/service/impl/SseServiceImpl.java)
+- [JChatMind.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/agent/JChatMind.java)
+- [JChatMindFactory.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/agent/JChatMindFactory.java)
+- [ChatEventListener.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/event/listener/ChatEventListener.java)
+- [RagServiceImpl.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/service/impl/RagServiceImpl.java)
+- [SseServiceImpl.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/service/impl/SseServiceImpl.java)
 
 当前系统更适合：
 
@@ -229,7 +229,7 @@ LangSmith 的接入建议采用 OpenTelemetry 路线，这样 Java 服务可以�
 
 #### RAG 改造
 
-第一阶段不必完全重写 RAG，只需将现有 [RagServiceImpl.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/com/kama/jchatmind/service/impl/RagServiceImpl.java) 包装成可供 `RetrieverNode` 调用的服务接口。
+第一阶段不必完全重写 RAG，只需将现有 [RagServiceImpl.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/service/impl/RagServiceImpl.java) 包装成可供 `RetrieverNode` 调用的服务接口。
 
 ### 5.5 第一阶段前端实现内容
 

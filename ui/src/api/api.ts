@@ -229,6 +229,85 @@ export async function deleteChatMessage(chatMessageId: string): Promise<void> {
 }
 
 /**
+ * FlowCopilot workflow 相关类型和接口
+ */
+export interface WorkflowInstanceVO {
+  id: string;
+  definitionId?: string;
+  title: string;
+  input: string;
+  status: string;
+  currentStep?: string;
+  result?: string;
+  metadata?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WorkflowStepInstanceVO {
+  id: string;
+  workflowInstanceId: string;
+  nodeKey: string;
+  nodeName: string;
+  status: string;
+  inputSnapshot?: string;
+  outputSnapshot?: string;
+  errorMessage?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ArtifactVO {
+  id: string;
+  workflowInstanceId: string;
+  type: string;
+  title: string;
+  content?: string;
+  metadata?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateWorkflowRequest {
+  title?: string;
+  input: string;
+  knowledgeBaseId?: string;
+}
+
+export interface CreateWorkflowResponse {
+  workflowInstanceId: string;
+  workflow: WorkflowInstanceVO;
+}
+
+export interface GetWorkflowResponse {
+  workflow: WorkflowInstanceVO;
+  steps: WorkflowStepInstanceVO[];
+  artifacts: ArtifactVO[];
+}
+
+export interface GetWorkflowsResponse {
+  workflows: WorkflowInstanceVO[];
+}
+
+export async function createWorkflow(
+  request: CreateWorkflowRequest,
+): Promise<CreateWorkflowResponse> {
+  return post<CreateWorkflowResponse>("/workflows", request);
+}
+
+export async function getWorkflow(
+  workflowInstanceId: string,
+): Promise<GetWorkflowResponse> {
+  return get<GetWorkflowResponse>(`/workflows/${workflowInstanceId}`);
+}
+
+export async function getWorkflows(limit = 20): Promise<GetWorkflowsResponse> {
+  return get<GetWorkflowsResponse>("/workflows", { limit });
+}
+
+/**
  * 知识库相关类型和接口
  */
 export interface KnowledgeBaseVO {

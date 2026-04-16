@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { RobotOutlined } from "@ant-design/icons";
-import { Tabs, type TabsProps } from "antd";
+import { Button, Tabs, type TabsProps } from "antd";
 import { useNavigate } from "react-router-dom";
 import AgentTabContent from "./tabs/AgentTabContent.tsx";
 import AddAgentModal from "./modals/AddAgentModal.tsx";
@@ -40,6 +40,7 @@ const SideMenu: React.FC<SideMenuProps> = () => {
 
   const [activeKey, setActiveKey] = useState(() => {
     if (location.pathname.startsWith("/agent")) return "agent";
+    if (location.pathname.startsWith("/workflow")) return "workflow";
     if (location.pathname.startsWith("/knowledge-base")) return "knowledgeBase";
     if (location.pathname.startsWith("/chat")) return "chat";
     return "agent";
@@ -75,6 +76,17 @@ const SideMenu: React.FC<SideMenuProps> = () => {
       children: <ChatTabContent />,
     },
     {
+      key: "workflow",
+      label: <span className="select-none">工作流</span>,
+      children: (
+        <div className="p-4">
+          <Button type="primary" block onClick={() => navigate("/workflow")}>
+            打开执行平台
+          </Button>
+        </div>
+      ),
+    },
+    {
       key: "knowledgeBase",
       label: <span className="select-none">知识库</span>,
       children: (
@@ -95,7 +107,7 @@ const SideMenu: React.FC<SideMenuProps> = () => {
         <div className="flex items-center gap-2.5 mx-4">
           <RobotOutlined className="text-xl text-indigo-600" />
           <div className="text-lg font-semibold select-none text-gray-900">
-            JChatMind
+            FlowCopilot
           </div>
         </div>
       </div>

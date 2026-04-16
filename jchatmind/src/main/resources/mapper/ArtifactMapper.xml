@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aliang.flowcopilot.mapper.ArtifactMapper">
+
+    <resultMap id="BaseResultMap" type="aliang.flowcopilot.model.entity.Artifact">
+        <id property="id" column="id" jdbcType="VARCHAR"/>
+        <result property="workflowInstanceId" column="workflow_instance_id" jdbcType="VARCHAR"/>
+        <result property="type" column="type" jdbcType="VARCHAR"/>
+        <result property="title" column="title" jdbcType="VARCHAR"/>
+        <result property="content" column="content" jdbcType="VARCHAR"/>
+        <result property="metadata" column="metadata" jdbcType="VARCHAR"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="aliang.flowcopilot.model.entity.Artifact"
+            keyColumn="id" keyProperty="id" useGeneratedKeys="true">
+        INSERT INTO artifact
+        (
+            workflow_instance_id,
+            type,
+            title,
+            content,
+            metadata,
+            created_at,
+            updated_at
+        )
+        VALUES
+        (
+            CAST(#{workflowInstanceId} AS uuid),
+            #{type},
+            #{title},
+            #{content},
+            CAST(#{metadata} AS jsonb),
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id,
+               workflow_instance_id,
+               type,
+               title,
+               content,
+               metadata::text AS metadata,
+               created_at,
+               updated_at
+        FROM artifact
+        WHERE id = CAST(#{id} AS uuid)
+    </select>
+
+    <select id="selectByWorkflowInstanceId" resultMap="BaseResultMap">
+        SELECT id,
+               workflow_instance_id,
+               type,
+               title,
+               content,
+               metadata::text AS metadata,
+               created_at,
+               updated_at
+        FROM artifact
+        WHERE workflow_instance_id = CAST(#{workflowInstanceId} AS uuid)
+        ORDER BY created_at ASC
+    </select>
+</mapper>

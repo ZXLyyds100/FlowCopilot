@@ -85,3 +85,64 @@ CREATE INDEX idx_chunk_embedding
 ON chunk_bge_m3
 USING ivfflat (embedding vector_l2_ops)
 WITH (lists = 100);
+
+CREATE TABLE workflow_definition (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT,
+    definition JSONB,
+
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE workflow_instance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    definition_id UUID REFERENCES workflow_definition(id) ON DELETE SET NULL,
+    title TEXT NOT NULL,
+    input TEXT NOT NULL,
+    status TEXT NOT NULL,
+    current_step TEXT,
+    result TEXT,
+    metadata JSONB,
+
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE workflow_step_instance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    workflow_instance_id UUID NOT NULL REFERENCES workflow_instance(id) ON DELETE CASCADE,
+    node_key TEXT NOT NULL,
+    node_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    input_snapshot JSONB,
+    output_snapshot JSONB,
+    error_message TEXT,
+    started_at TIMESTAMP,
+    completed_at TIMESTAMP,
+
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE artifact (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    workflow_instance_id UUID NOT NULL REFERENCES workflow_instance(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT,
+    metadata JSONB,
+
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_workflow_instance_created_at ON workflow_instance(created_at DESC);
+CREATE INDEX idx_workflow_step_instance_workflow ON workflow_step_instance(workflow_instance_id, created_at ASC);
+CREATE INDEX idx_artifact_workflow ON artifact(workflow_instance_id, created_at ASC);

@@ -28,7 +28,7 @@
 对应配置前缀已经改为：
 
 ```yaml
-jchatmind.llm.providers.*
+flowcopilot.llm.providers.*
 ```
 
 示例：
