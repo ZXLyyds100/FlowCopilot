@@ -29,7 +29,7 @@ flowcopilot:
     providers:
       deepseek:
         enabled: true
-        api-key: ${DEEPSEEK_API_KEY:}
+        api-key: ${DEEPSEEK_API_KEY:sk-8a499be22fc94521a2175503a8a729c6}
         base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
         model: ${DEEPSEEK_MODEL:deepseek-chat}
         timeout: 60s
@@ -37,7 +37,7 @@ flowcopilot:
         log-responses: false
       zhipu:
         enabled: false
-        api-key: ${ZHIPU_API_KEY:}
+        api-key: ${ZHIPU_API_KEY:083ecca9bab44aa7bde8085393878b88.sTQPyXXQ4y2zD7Hr}
         base-url: ${ZHIPU_BASE_URL:https://open.bigmodel.cn/api/paas/v4}
         model: ${ZHIPU_MODEL:glm-4.6}
         timeout: 60s
