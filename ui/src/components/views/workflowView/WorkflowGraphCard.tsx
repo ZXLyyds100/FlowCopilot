@@ -1,7 +1,8 @@
-import { ApartmentOutlined, CodeOutlined, NodeIndexOutlined } from "@ant-design/icons";
-import { Card, Space, Tag, Typography } from "antd";
-import React from "react";
+import { ApartmentOutlined, CodeOutlined, ExpandOutlined, NodeIndexOutlined } from "@ant-design/icons";
+import { Button, Card, Modal, Space, Tag, Typography } from "antd";
+import React, { useState } from "react";
 import type { WorkflowGraphCardProps } from "./types.ts";
+import WorkflowMermaidViewer from "./WorkflowMermaidViewer.tsx";
 import { NODE_ORDER, nodeMeta, statusColor } from "./utils.ts";
 
 export default function WorkflowGraphCard({
@@ -14,6 +15,8 @@ export default function WorkflowGraphCard({
   steps,
   templates,
 }: WorkflowGraphCardProps) {
+  const [mermaidOpen, setMermaidOpen] = useState(false);
+
   return (
     <Card
       title={<Space><NodeIndexOutlined />Graph 路径与动态路由</Space>}
@@ -96,13 +99,35 @@ export default function WorkflowGraphCard({
                 <CodeOutlined />
                 <Typography.Text className="!text-slate-100">LangGraph4j Mermaid</Typography.Text>
               </Space>
-              <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-6 text-cyan-50">
-                {selectedTemplateMermaid || "Graph definition loading..."}
-              </pre>
+              <Button
+                type="default"
+                icon={<ExpandOutlined />}
+                className="w-full rounded-2xl border-white/15 bg-white/5 !text-slate-100 hover:!border-cyan-300 hover:!text-cyan-200"
+                onClick={() => setMermaidOpen(true)}
+              >
+                查看 Mermaid 图
+              </Button>
             </div>
           </Space>
         </div>
       </div>
+      <Modal
+        centered
+        destroyOnHidden
+        footer={null}
+        open={mermaidOpen}
+        styles={{
+          body: {
+            height: "min(78vh, 820px)",
+            padding: 0,
+          },
+        }}
+        title="LangGraph4j Mermaid 预览"
+        width={1080}
+        onCancel={() => setMermaidOpen(false)}
+      >
+        <WorkflowMermaidViewer content={selectedTemplateMermaid} />
+      </Modal>
     </Card>
   );
 }
