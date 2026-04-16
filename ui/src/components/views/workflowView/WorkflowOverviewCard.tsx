@@ -22,44 +22,68 @@ export default function WorkflowOverviewCard({
   selectedTemplate,
   traces,
 }: WorkflowOverviewCardProps) {
+  const currentNodeLabel = latestSnapshot?.currentNodeKey || currentWorkflow?.currentStep || "等待执行";
+
   return (
-    <Card className="overflow-hidden border-none bg-slate-950 text-white shadow-2xl shadow-slate-300">
-      <div className="absolute right-0 top-0 h-full w-1/2 bg-[radial-gradient(circle_at_top,#22d3ee55,transparent_55%)]" />
-      <div className="relative grid grid-cols-[minmax(0,1fr)_280px] gap-6">
+    <Card
+      title={(
+        <Space>
+          <Badge status={currentWorkflow?.status === "RUNNING" ? "processing" : "default"} />
+          <span>运行概览</span>
+        </Space>
+      )}
+      extra={(
+        <Space size="small">
+          <Typography.Text className="!text-slate-500">
+            {selectedTemplate?.name || "Graph 工作流"}
+          </Typography.Text>
+          <Tag color={statusColor(currentWorkflow?.status)}>{currentWorkflow?.status || "IDLE"}</Tag>
+        </Space>
+      )}
+      className="border-none bg-white/90 text-slate-800 shadow-xl shadow-slate-200/70 [&_.ant-card-head-title]:text-slate-900"
+    >
+      <div className="grid grid-cols-[minmax(0,1fr)_320px] gap-5">
         <div>
-          <Space className="mb-3">
-            <Badge status={currentWorkflow?.status === "RUNNING" ? "processing" : "default"} />
-            <Typography.Text className="!text-cyan-200">
-              {selectedTemplate?.name || "Graph 工作流"}
-            </Typography.Text>
-            <Tag color={statusColor(currentWorkflow?.status)}>{currentWorkflow?.status || "IDLE"}</Tag>
-          </Space>
-          <Typography.Title level={2} className="!mb-3 !text-white">
+          <Typography.Title level={3} className="!mb-3 !text-slate-900">
             {currentWorkflow?.title || "实时 Agent Graph 工作台"}
           </Typography.Title>
-          <Typography.Paragraph className="!mb-0 !text-slate-300">
+          <Typography.Paragraph className="!mb-5 !text-slate-600">
             {currentWorkflow?.input
               || "创建任务后，系统会按 Graph 模板执行 Planner、Retriever、Executor、Reviewer、Approval、Publisher，并实时展示每个节点的状态、输出与 Trace。"}
           </Typography.Paragraph>
-        </div>
-        <div className="rounded-3xl border border-white/15 bg-white/12 p-4 backdrop-blur">
-          <Typography.Text className="!text-slate-100">Graph 进度</Typography.Text>
-          <Progress
-            percent={progressPercent}
-            strokeColor={{ "0%": "#22d3ee", "100%": "#facc15" }}
-            trailColor="rgba(255,255,255,0.16)"
-          />
-          <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-2xl bg-white/10 p-3">
-              <div className="text-slate-200">Trace</div>
-              <div className="font-semibold text-white">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-sm text-slate-500">当前节点</div>
+              <div className="mt-2 text-base font-semibold text-slate-900">{currentNodeLabel}</div>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-sm text-slate-500">Trace</div>
+              <div className="mt-2 text-base font-semibold text-slate-900">
                 {shortId(latestSnapshot?.traceId || traces[0]?.traceId)}
               </div>
             </div>
-            <div className="rounded-2xl bg-white/10 p-3">
-              <div className="text-slate-200">Retry</div>
-              <div className="font-semibold text-white">{latestSnapshot?.retryCount || 0}</div>
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="text-sm text-slate-500">Retry</div>
+              <div className="mt-2 text-base font-semibold text-slate-900">{latestSnapshot?.retryCount || 0}</div>
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl bg-slate-950 p-5 text-slate-100">
+          <Typography.Text className="!text-slate-100">执行进度</Typography.Text>
+          <Progress
+            percent={progressPercent}
+            strokeColor={{ "0%": "#22d3ee", "100%": "#facc15" }}
+            railColor="rgba(255,255,255,0.12)"
+          />
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <Typography.Text className="!text-slate-100">模板视角</Typography.Text>
+              <Tag color="cyan">{selectedTemplate?.code || "default"}</Tag>
+            </div>
+            <Typography.Paragraph className="!mb-0 !text-slate-300">
+              {selectedTemplate?.description || "等待选择 Graph 模板并启动执行。"}
+            </Typography.Paragraph>
           </div>
         </div>
       </div>
