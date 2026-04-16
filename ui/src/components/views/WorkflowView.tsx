@@ -427,7 +427,7 @@ const WorkflowView: React.FC = () => {
 
   return (
     <div className="h-full overflow-auto bg-[radial-gradient(circle_at_top_left,#e8f7ff_0,#f6f1e8_34%,#f8fafc_70%)]">
-      <div className="mx-auto max-w-[1240px] space-y-4">
+      <div className="mx-auto flex max-w-[1240px] flex-col gap-6">
         <WorkflowCreateCard
           title={title}
           taskInput={taskInput}

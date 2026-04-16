@@ -60,4 +60,19 @@ describe("WorkflowView", () => {
       ).toBeInTheDocument();
     });
   });
+
+  it("uses an explicit vertical flex gap between workflow cards", async () => {
+    render(<WorkflowView />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("创建或选择一个工作流查看第四阶段 Graph 执行详情"),
+      ).toBeInTheDocument();
+    });
+
+    const createCard = screen.getByText("FlowCopilot Graph Studio").closest(".ant-card");
+    const stack = createCard?.parentElement;
+
+    expect(stack).toHaveClass("flex", "flex-col", "gap-6");
+  });
 });
