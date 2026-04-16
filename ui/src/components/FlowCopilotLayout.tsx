@@ -1,22 +1,18 @@
-import { Routes, Route } from "react-router-dom";
-import Layout from "../layout/Layout.tsx";
-import Sidebar from "../layout/Sidebar.tsx";
-import SideMenu from "./SideMenu.tsx";
-import Content from "../layout/Content.tsx";
+import { Navigate, Route, Routes } from "react-router-dom";
 import AgentChatView from "./views/AgentChatView.tsx";
 import KnowledgeBaseView from "./views/KnowledgeBaseView.tsx";
+import SettingsPlaceholderView from "./views/SettingsPlaceholderView.tsx";
 import WorkflowView from "./views/WorkflowView.tsx";
+import AppShell from "./shell/AppShell.tsx";
+import { ShellProvider } from "./shell/ShellProvider.tsx";
 
 export default function FlowCopilotLayout() {
   return (
-    <Layout>
-      <Sidebar>
-        <SideMenu />
-      </Sidebar>
-      <Content>
+    <ShellProvider>
+      <AppShell>
         <Routes>
-          <Route path="/" element={<AgentChatView />} />
-          <Route path="/agent" element={<AgentChatView />} />
+          <Route path="/" element={<Navigate to="/chat" replace />} />
+          <Route path="/agent" element={<Navigate to="/chat" replace />} />
           <Route path="/chat" element={<AgentChatView />} />
           <Route path="/chat/:chatSessionId" element={<AgentChatView />} />
           <Route path="/workflow" element={<WorkflowView />} />
@@ -25,8 +21,9 @@ export default function FlowCopilotLayout() {
             path="/knowledge-base/:knowledgeBaseId"
             element={<KnowledgeBaseView />}
           />
+          <Route path="/settings" element={<SettingsPlaceholderView />} />
         </Routes>
-      </Content>
-    </Layout>
+      </AppShell>
+    </ShellProvider>
   );
 }

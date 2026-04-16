@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
+:root {
+  --shell-canvas: #f8fafc;
+  --shell-surface: #ffffff;
+  --shell-border: #dbe5f0;
+  --shell-text: #0f172a;
+  --shell-muted: #64748b;
+  --shell-primary: #2563eb;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--shell-text);
+  background: var(--shell-canvas);
+}
+
 /* 修复 Ant Design Tabs 在 flex 布局中的滚动问题 */
 .ant-tabs {
   display: flex;
@@ -30,4 +51,32 @@
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none; /* Chrome, Safari and Opera */
+}
+
+.shell-skip-link {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  z-index: 1000;
+  border-radius: 999px;
+  background: var(--shell-text);
+  color: white;
+  padding: 10px 16px;
+  text-decoration: none;
+  transform: translateY(-200%);
+  transition: transform 160ms ease;
+}
+
+.shell-skip-link:focus {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0ms !important;
+  }
 }
