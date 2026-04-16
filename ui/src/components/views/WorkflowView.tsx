@@ -51,6 +51,7 @@ import {
 import { BASE_URL } from "../../api/http.ts";
 import { useKnowledgeBases } from "../../hooks/useKnowledgeBases.ts";
 import WorkflowInspector from "./workflowView/WorkflowInspector.tsx";
+import WorkflowMarkdown from "./workflowView/WorkflowMarkdown.tsx";
 
 const { TextArea } = Input;
 
@@ -207,6 +208,7 @@ const WorkflowView: React.FC = () => {
   const [traces, setTraces] = useState<ExecutionTraceRefVO[]>([]);
   const [artifacts, setArtifacts] = useState<ArtifactVO[]>([]);
   const [streamStages, setStreamStages] = useState<Record<string, StreamStage>>({});
+  const [expandedStepSummaries, setExpandedStepSummaries] = useState<Record<string, boolean>>({});
   const [liveStatus, setLiveStatus] = useState("等待创建任务");
   const eventSourceRef = useRef<EventSource | null>(null);
   const { knowledgeBases } = useKnowledgeBases();
@@ -383,6 +385,7 @@ const WorkflowView: React.FC = () => {
     setArtifacts([]);
     setSteps([]);
     setTraces([]);
+    setExpandedStepSummaries({});
     setLiveStatus("正在创建 Graph 工作流");
     try {
       const response = await createWorkflow({
@@ -454,6 +457,13 @@ const WorkflowView: React.FC = () => {
     } finally {
       setReplayingNode(null);
     }
+  };
+
+  const toggleStepSummary = (stepId: string) => {
+    setExpandedStepSummaries((prev) => ({
+      ...prev,
+      [stepId]: !prev[stepId],
+    }));
   };
 
   useShellPage({
@@ -702,9 +712,11 @@ const WorkflowView: React.FC = () => {
                               </Space>
                               <Tag color={statusColor(stage.status)}>{stage.status}</Tag>
                             </div>
-                            <pre className="mb-0 whitespace-pre-wrap font-sans text-[14px] leading-8 text-slate-800">
-                              {stage.content || "正在思考和执行..."}
-                            </pre>
+                            <WorkflowMarkdown
+                              className="mb-0 text-[14px] leading-8 text-slate-800"
+                              content={stage.content}
+                              placeholder="正在思考和执行..."
+                            />
                           </div>
                         );
                       })}
@@ -759,11 +771,12 @@ const WorkflowView: React.FC = () => {
               {currentWorkflow.status === "WAITING_APPROVAL" && (
                 <Card title="人工审批" className="border-none bg-amber-50 text-slate-800 shadow-xl shadow-amber-100 [&_.ant-card-head-title]:text-amber-950">
                   <Space direction="vertical" className="w-full" size="middle">
-                    <Typography.Paragraph className="whitespace-pre-wrap !text-slate-800">
-                      {pendingApprovals.find((approval) => approval.id === currentApprovalId)?.summary
-                        || latestSnapshot?.reviewComment
-                        || "Reviewer 已完成复核，请确认是否进入发布阶段。"}
-                    </Typography.Paragraph>
+                    <WorkflowMarkdown
+                      className="text-slate-800"
+                      content={pendingApprovals.find((approval) => approval.id === currentApprovalId)?.summary
+                        || latestSnapshot?.reviewComment}
+                      placeholder="Reviewer 已完成复核，请确认是否进入发布阶段。"
+                    />
                     <TextArea
                       rows={3}
                       placeholder="审批意见。驳回时会作为 Executor Agent 重试依据。"
@@ -808,12 +821,26 @@ const WorkflowView: React.FC = () => {
                         }
                         description={
                           <Space direction="vertical" className="w-full">
-                            <Typography.Paragraph
-                              className="mb-0 !text-slate-700"
-                              ellipsis={{ rows: 3, expandable: true, symbol: "展开" }}
-                            >
-                              {getStepSummary(step)}
-                            </Typography.Paragraph>
+                            <div className="w-full">
+                              <div
+                                className={`relative overflow-hidden text-slate-700 ${
+                                  expandedStepSummaries[step.id] ? "" : "max-h-28"
+                                }`}
+                              >
+                                <WorkflowMarkdown content={getStepSummary(step)} />
+                                {!expandedStepSummaries[step.id] && (
+                                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white via-white/90 to-transparent" />
+                                )}
+                              </div>
+                              <Button
+                                type="link"
+                                size="small"
+                                className="mt-1 px-0"
+                                onClick={() => toggleStepSummary(step.id)}
+                              >
+                                {expandedStepSummaries[step.id] ? "收起" : "展开"}
+                              </Button>
+                            </div>
                             <Collapse
                               size="small"
                               ghost
@@ -855,9 +882,11 @@ const WorkflowView: React.FC = () => {
                           <Tag color="blue">{latestSnapshot.review.score}/100</Tag>
                         )}
                       </div>
-                      <Typography.Paragraph className="whitespace-pre-wrap !text-slate-700">
-                        {latestSnapshot.reviewComment || latestSnapshot.review?.comment || "暂无复核意见"}
-                      </Typography.Paragraph>
+                      <WorkflowMarkdown
+                        className="text-slate-700"
+                        content={latestSnapshot.reviewComment || latestSnapshot.review?.comment}
+                        placeholder="暂无复核意见"
+                      />
                       <List
                         size="small"
                         header="引用来源"
@@ -892,9 +921,10 @@ const WorkflowView: React.FC = () => {
                         title={artifact.title}
                         className="mb-4 overflow-hidden [&_.ant-card-head-title]:text-slate-900"
                       >
-                        <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-sm leading-8 text-slate-100">
-                          {artifact.content}
-                        </pre>
+                        <WorkflowMarkdown
+                          className="max-h-[520px] overflow-auto rounded-2xl bg-slate-950 p-4 text-sm leading-8 text-slate-100 [&_code]:bg-white/10 [&_pre]:bg-transparent [&_pre]:p-0 [&_a]:text-cyan-300"
+                          content={artifact.content}
+                        />
                       </Card>
                     ))
                   )}
