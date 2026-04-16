@@ -6,6 +6,8 @@ package aliang.flowcopilot.workflow.state;
 public enum WorkflowStatus {
     CREATED,
     RUNNING,
+    WAITING_APPROVAL,
     COMPLETED,
-    FAILED
+    FAILED,
+    REJECTED
 }

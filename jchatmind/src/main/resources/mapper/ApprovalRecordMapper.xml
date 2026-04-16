@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aliang.flowcopilot.mapper.ApprovalRecordMapper">
+
+    <resultMap id="BaseResultMap" type="aliang.flowcopilot.model.entity.ApprovalRecord">
+        <id property="id" column="id" jdbcType="VARCHAR"/>
+        <result property="workflowInstanceId" column="workflow_instance_id" jdbcType="VARCHAR"/>
+        <result property="status" column="status" jdbcType="VARCHAR"/>
+        <result property="title" column="title" jdbcType="VARCHAR"/>
+        <result property="summary" column="summary" jdbcType="VARCHAR"/>
+        <result property="comment" column="comment" jdbcType="VARCHAR"/>
+        <result property="decidedAt" column="decided_at" jdbcType="TIMESTAMP"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+        <result property="updatedAt" column="updated_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="aliang.flowcopilot.model.entity.ApprovalRecord"
+            keyColumn="id" keyProperty="id" useGeneratedKeys="true">
+        INSERT INTO approval_record
+        (
+            workflow_instance_id,
+            status,
+            title,
+            summary,
+            comment,
+            decided_at,
+            created_at,
+            updated_at
+        )
+        VALUES
+        (
+            CAST(#{workflowInstanceId} AS uuid),
+            #{status},
+            #{title},
+            #{summary},
+            #{comment},
+            #{decidedAt},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT id,
+               workflow_instance_id,
+               status,
+               title,
+               summary,
+               comment,
+               decided_at,
+               created_at,
+               updated_at
+        FROM approval_record
+        WHERE id = CAST(#{id} AS uuid)
+    </select>
+
+    <select id="selectPendingByWorkflowInstanceId" resultMap="BaseResultMap">
+        SELECT id,
+               workflow_instance_id,
+               status,
+               title,
+               summary,
+               comment,
+               decided_at,
+               created_at,
+               updated_at
+        FROM approval_record
+        WHERE workflow_instance_id = CAST(#{workflowInstanceId} AS uuid)
+          AND status = 'PENDING'
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT id,
+               workflow_instance_id,
+               status,
+               title,
+               summary,
+               comment,
+               decided_at,
+               created_at,
+               updated_at
+        FROM approval_record
+        WHERE status = #{status}
+        ORDER BY created_at DESC
+    </select>
+
+    <update id="updateById" parameterType="aliang.flowcopilot.model.entity.ApprovalRecord">
+        UPDATE approval_record
+        <set>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="title != null">
+                title = #{title},
+            </if>
+            <if test="summary != null">
+                summary = #{summary},
+            </if>
+            <if test="comment != null">
+                comment = #{comment},
+            </if>
+            <if test="decidedAt != null">
+                decided_at = #{decidedAt},
+            </if>
+            updated_at = NOW()
+        </set>
+        WHERE id = CAST(#{id} AS uuid)
+    </update>
+</mapper>

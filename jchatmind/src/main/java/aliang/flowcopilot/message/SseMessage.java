@@ -28,6 +28,13 @@ public class SseMessage {
     public static class Payload {
         private ChatMessageVO message;
         private String statusText;
+        private String workflowInstanceId;
+        private String nodeKey;
+        private String nodeName;
+        private String stepStatus;
+        private String content;
+        private String approvalRecordId;
+        private String approvalStatus;
         private Boolean done;
     }
 
@@ -39,6 +46,9 @@ public class SseMessage {
     @Builder
     public static class Metadata {
         private String chatMessageId;
+        private String workflowInstanceId;
+        private String stepId;
+        private String approvalRecordId;
     }
 
     /**
@@ -50,5 +60,15 @@ public class SseMessage {
         AI_THINKING,
         AI_EXECUTING,
         AI_DONE,
+        WORKFLOW_STARTED,
+        STEP_STARTED,
+        STEP_DELTA,
+        STEP_COMPLETED,
+        STEP_FAILED,
+        APPROVAL_REQUIRED,
+        WORKFLOW_RESUMED,
+        WORKFLOW_REJECTED,
+        WORKFLOW_FINISHED,
+        WORKFLOW_FAILED,
     }
 }

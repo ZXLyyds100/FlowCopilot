@@ -6,6 +6,7 @@ import aliang.flowcopilot.exception.BizException;
 import aliang.flowcopilot.mapper.ArtifactMapper;
 import aliang.flowcopilot.mapper.WorkflowInstanceMapper;
 import aliang.flowcopilot.mapper.WorkflowStepInstanceMapper;
+import aliang.flowcopilot.model.entity.ApprovalRecord;
 import aliang.flowcopilot.model.entity.Artifact;
 import aliang.flowcopilot.model.entity.WorkflowInstance;
 import aliang.flowcopilot.model.entity.WorkflowStepInstance;
@@ -17,7 +18,9 @@ import aliang.flowcopilot.model.response.GetWorkflowsResponse;
 import aliang.flowcopilot.model.vo.ArtifactVO;
 import aliang.flowcopilot.model.vo.WorkflowInstanceVO;
 import aliang.flowcopilot.model.vo.WorkflowStepInstanceVO;
+import aliang.flowcopilot.workflow.event.WorkflowEventPublisher;
 import aliang.flowcopilot.workflow.node.WorkflowNode;
+import aliang.flowcopilot.workflow.state.ApprovalStatus;
 import aliang.flowcopilot.workflow.state.WorkflowState;
 import aliang.flowcopilot.workflow.state.WorkflowStatus;
 import aliang.flowcopilot.workflow.state.WorkflowStepStatus;
@@ -28,6 +31,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 /**
  * First-stage fixed workflow runtime.
@@ -44,6 +48,9 @@ public class WorkflowRuntimeService {
     private final ArtifactMapper artifactMapper;
     private final ObjectMapper objectMapper;
     private final List<WorkflowNode> workflowNodes;
+    private final Executor taskExecutor;
+    private final ApprovalService approvalService;
+    private final WorkflowEventPublisher workflowEventPublisher;
 
     public CreateWorkflowResponse createAndRun(CreateWorkflowRequest request) {
         if (!StringUtils.hasText(request.getInput())) {
@@ -69,13 +76,38 @@ public class WorkflowRuntimeService {
                 .knowledgeBaseId(request.getKnowledgeBaseId())
                 .build();
 
-        runFixedSkeleton(workflowInstance, state);
+        taskExecutor.execute(() -> runWorkflowSafely(workflowInstance, state, "planner"));
 
-        WorkflowInstance completed = workflowInstanceMapper.selectById(workflowInstance.getId());
         return CreateWorkflowResponse.builder()
                 .workflowInstanceId(workflowInstance.getId())
-                .workflow(toVO(completed))
+                .workflow(toVO(workflowInstance))
                 .build();
+    }
+
+    public void approveAndResume(String approvalRecordId, String comment) {
+        ApprovalRecord approval = approvalService.approve(approvalRecordId, comment);
+        WorkflowInstance workflow = requireWorkflow(approval.getWorkflowInstanceId());
+        WorkflowState state = loadLatestState(workflow);
+        state.setApprovalRecordId(approval.getId());
+        state.setApprovalStatus(ApprovalStatus.APPROVED.name());
+        state.setApprovalComment(approval.getComment());
+        state.setApprovalRequired(false);
+        updateWorkflow(workflow.getId(), WorkflowStatus.RUNNING.name(), "publish", "审批通过，继续发布");
+        workflowEventPublisher.workflowResumed(workflow.getId(), "审批通过，继续执行 Reporter Agent");
+        taskExecutor.execute(() -> runWorkflowSafely(workflow, state, "publish"));
+    }
+
+    public void rejectAndRetry(String approvalRecordId, String comment) {
+        ApprovalRecord approval = approvalService.reject(approvalRecordId, comment);
+        WorkflowInstance workflow = requireWorkflow(approval.getWorkflowInstanceId());
+        WorkflowState state = loadLatestState(workflow);
+        state.setApprovalRecordId(approval.getId());
+        state.setApprovalStatus(ApprovalStatus.REJECTED.name());
+        state.setApprovalComment(approval.getComment());
+        state.setApprovalRequired(false);
+        updateWorkflow(workflow.getId(), WorkflowStatus.RUNNING.name(), "executor", "审批驳回，回退到 Executor Agent 重试");
+        workflowEventPublisher.workflowResumed(workflow.getId(), "审批驳回，回退到 Executor Agent 重新生成");
+        taskExecutor.execute(() -> runWorkflowSafely(workflow, state, "executor"));
     }
 
     public GetWorkflowResponse getWorkflow(String workflowInstanceId) {
@@ -105,23 +137,49 @@ public class WorkflowRuntimeService {
                 .build();
     }
 
-    private void runFixedSkeleton(WorkflowInstance workflowInstance, WorkflowState state) {
+    private void runWorkflowSafely(WorkflowInstance workflowInstance, WorkflowState state, String startNodeKey) {
+        try {
+            runFixedSkeleton(workflowInstance, state, startNodeKey);
+        } catch (Exception e) {
+            String errorMessage = resolveErrorMessage(e);
+            workflowEventPublisher.workflowFailed(workflowInstance.getId(), errorMessage);
+        }
+    }
+
+    private void runFixedSkeleton(WorkflowInstance workflowInstance, WorkflowState state, String startNodeKey) {
+        workflowEventPublisher.workflowStarted(workflowInstance.getId(), workflowInstance.getTitle());
         updateWorkflow(workflowInstance.getId(), WorkflowStatus.RUNNING.name(), "planner", null);
-        for (WorkflowNode node : orderedNodes()) {
+        for (WorkflowNode node : orderedNodesFrom(startNodeKey)) {
             WorkflowStepInstance step = startStep(workflowInstance.getId(), node, state);
+            workflowEventPublisher.stepStarted(workflowInstance.getId(), step);
             try {
                 updateWorkflow(workflowInstance.getId(), WorkflowStatus.RUNNING.name(), node.key(), null);
                 WorkflowState outputState = node.execute(state);
                 completeStep(step.getId(), outputState);
                 state = outputState;
+                WorkflowStepInstance completedStep = WorkflowStepInstance.builder()
+                        .id(step.getId())
+                        .workflowInstanceId(step.getWorkflowInstanceId())
+                        .nodeKey(step.getNodeKey())
+                        .nodeName(step.getNodeName())
+                        .status(WorkflowStepStatus.COMPLETED.name())
+                        .build();
+                workflowEventPublisher.stepCompleted(workflowInstance.getId(), completedStep, summarizeNodeOutput(node.key(), state));
+                if ("approval".equals(node.key()) && state.isApprovalRequired()) {
+                    updateWorkflow(workflowInstance.getId(), WorkflowStatus.WAITING_APPROVAL.name(), "approval", state.getReviewComment());
+                    workflowEventPublisher.approvalRequired(workflowInstance.getId(), state.getApprovalRecordId(), state.getReviewComment());
+                    return;
+                }
             } catch (Exception e) {
                 String errorMessage = resolveErrorMessage(e);
                 failStep(step.getId(), e);
                 updateWorkflow(workflowInstance.getId(), WorkflowStatus.FAILED.name(), node.key(), errorMessage);
+                workflowEventPublisher.stepFailed(workflowInstance.getId(), step, errorMessage);
                 throw new BizException("工作流节点执行失败: " + node.name() + ", " + errorMessage);
             }
         }
         updateWorkflow(workflowInstance.getId(), WorkflowStatus.COMPLETED.name(), "finished", state.getFinalOutput());
+        workflowEventPublisher.workflowFinished(workflowInstance.getId(), state.getFinalOutput());
     }
 
     private String resolveErrorMessage(Exception e) {
@@ -132,11 +190,54 @@ public class WorkflowRuntimeService {
     }
 
     private List<WorkflowNode> orderedNodes() {
-        List<String> order = List.of("planner", "retriever", "executor", "reviewer", "publish");
+        List<String> order = List.of("planner", "retriever", "executor", "reviewer", "approval", "publish");
         return workflowNodes.stream()
                 .filter(node -> order.contains(node.key()))
                 .sorted(Comparator.comparingInt(node -> order.indexOf(node.key())))
                 .toList();
+    }
+
+    private List<WorkflowNode> orderedNodesFrom(String startNodeKey) {
+        List<WorkflowNode> nodes = orderedNodes();
+        int startIndex = 0;
+        for (int i = 0; i < nodes.size(); i++) {
+            if (nodes.get(i).key().equals(startNodeKey)) {
+                startIndex = i;
+                break;
+            }
+        }
+        return nodes.subList(startIndex, nodes.size());
+    }
+
+    private WorkflowState loadLatestState(WorkflowInstance workflow) {
+        List<WorkflowStepInstance> steps = workflowStepInstanceMapper.selectByWorkflowInstanceId(workflow.getId());
+        for (int i = steps.size() - 1; i >= 0; i--) {
+            String snapshot = steps.get(i).getOutputSnapshot();
+            if (StringUtils.hasText(snapshot) && !"{}".equals(snapshot)) {
+                try {
+                    return objectMapper.readValue(snapshot, WorkflowState.class);
+                } catch (JsonProcessingException ignored) {
+                    break;
+                }
+            }
+        }
+        return WorkflowState.builder()
+                .workflowInstanceId(workflow.getId())
+                .title(workflow.getTitle())
+                .userInput(workflow.getInput())
+                .build();
+    }
+
+    private String summarizeNodeOutput(String nodeKey, WorkflowState state) {
+        return switch (nodeKey) {
+            case "planner" -> state.getPlan();
+            case "retriever" -> String.join("\n", state.safeRetrievedContents());
+            case "executor" -> state.getDraftResult();
+            case "reviewer" -> state.getReviewComment();
+            case "approval" -> "等待人工审批：" + state.getApprovalRecordId();
+            case "publish" -> state.getFinalOutput();
+            default -> state.getFinalOutput();
+        };
     }
 
     private WorkflowStepInstance startStep(String workflowInstanceId, WorkflowNode node, WorkflowState state) {

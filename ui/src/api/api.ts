@@ -307,6 +307,44 @@ export async function getWorkflows(limit = 20): Promise<GetWorkflowsResponse> {
   return get<GetWorkflowsResponse>("/workflows", { limit });
 }
 
+export interface ApprovalRecordVO {
+  id: string;
+  workflowInstanceId: string;
+  status: string;
+  title: string;
+  summary?: string;
+  comment?: string;
+  decidedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GetApprovalsResponse {
+  approvals: ApprovalRecordVO[];
+}
+
+export interface ApprovalDecisionRequest {
+  comment?: string;
+}
+
+export async function getApprovals(status = "PENDING"): Promise<GetApprovalsResponse> {
+  return get<GetApprovalsResponse>("/approvals", { status });
+}
+
+export async function approveWorkflow(
+  approvalRecordId: string,
+  request: ApprovalDecisionRequest,
+): Promise<ApprovalRecordVO> {
+  return post<ApprovalRecordVO>(`/approvals/${approvalRecordId}/approve`, request);
+}
+
+export async function rejectWorkflow(
+  approvalRecordId: string,
+  request: ApprovalDecisionRequest,
+): Promise<ApprovalRecordVO> {
+  return post<ApprovalRecordVO>(`/approvals/${approvalRecordId}/reject`, request);
+}
+
 /**
  * 知识库相关类型和接口
  */

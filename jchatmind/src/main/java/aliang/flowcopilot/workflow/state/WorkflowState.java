@@ -2,6 +2,8 @@ package aliang.flowcopilot.workflow.state;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +13,8 @@ import java.util.List;
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class WorkflowState {
     private String workflowInstanceId;
     private String title;
@@ -24,6 +28,10 @@ public class WorkflowState {
     private String draftResult;
     private WorkflowReview review;
     private String reviewComment;
+    private String approvalRecordId;
+    private String approvalStatus;
+    private String approvalComment;
+    private boolean approvalRequired;
     private String finalOutput;
     private String artifactId;
 

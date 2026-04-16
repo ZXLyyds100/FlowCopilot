@@ -11,7 +11,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Workflow API for the first-stage FlowCopilot execution loop.
+ * Workflow API for the FlowCopilot execution loop.
  */
 @RestController
 @RequestMapping("/api/workflows")

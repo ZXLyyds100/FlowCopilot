@@ -2,7 +2,7 @@ spring:
   application:
     name: flowcopilot
   datasource:
-    url: jdbc:postgresql://localhost:5432/flowcopilot
+    url: jdbc:postgresql://localhost:5432/postgres
     username: root
     password: root
     driver-class-name: org.postgresql.Driver

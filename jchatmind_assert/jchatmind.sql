@@ -143,6 +143,22 @@ CREATE TABLE artifact (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE approval_record (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    workflow_instance_id UUID NOT NULL REFERENCES workflow_instance(id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT,
+    comment TEXT,
+    decided_at TIMESTAMP,
+
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE INDEX idx_workflow_instance_created_at ON workflow_instance(created_at DESC);
 CREATE INDEX idx_workflow_step_instance_workflow ON workflow_step_instance(workflow_instance_id, created_at ASC);
 CREATE INDEX idx_artifact_workflow ON artifact(workflow_instance_id, created_at ASC);
+CREATE INDEX idx_approval_record_status ON approval_record(status, created_at DESC);
+CREATE INDEX idx_approval_record_workflow ON approval_record(workflow_instance_id, created_at DESC);
