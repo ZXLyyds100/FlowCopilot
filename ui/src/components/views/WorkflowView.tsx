@@ -20,7 +20,6 @@ import {
 import {
   ApartmentOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
   CloudSyncOutlined,
   CodeOutlined,
   ExperimentOutlined,
@@ -31,6 +30,7 @@ import {
   ReloadOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
+import { useShellPage } from "../shell/useShellPage.ts";
 import {
   approveWorkflow,
   createWorkflow,
@@ -50,6 +50,7 @@ import {
 } from "../../api/api.ts";
 import { BASE_URL } from "../../api/http.ts";
 import { useKnowledgeBases } from "../../hooks/useKnowledgeBases.ts";
+import WorkflowInspector from "./workflowView/WorkflowInspector.tsx";
 
 const { TextArea } = Input;
 
@@ -455,11 +456,31 @@ const WorkflowView: React.FC = () => {
     }
   };
 
+  useShellPage({
+    title: "工作流",
+    description: "运行 Graph 模板、查看实时状态并处理审批。",
+    primaryAction: {
+      label: "启动工作流",
+      onClick: handleCreateWorkflow,
+    },
+    detailTitle: "工作流检查栏",
+    detailContent: (
+      <WorkflowInspector
+        pendingApprovals={pendingApprovals}
+        workflows={workflows}
+        liveStatus={liveStatus}
+        onSelectWorkflow={(id) => {
+          connectWorkflowStream(id);
+          loadWorkflow(id).catch(console.error);
+        }}
+      />
+    ),
+  });
+
   return (
-    <div className="h-full overflow-auto bg-[radial-gradient(circle_at_top_left,#e8f7ff_0,#f6f1e8_34%,#f8fafc_70%)] p-6">
-      <div className="mx-auto grid max-w-[1520px] grid-cols-[410px_minmax(0,1fr)] gap-6">
-        <aside className="space-y-4">
-          <Card className="overflow-hidden border-none bg-slate-950 text-white shadow-2xl shadow-slate-200">
+    <div className="h-full overflow-auto bg-[radial-gradient(circle_at_top_left,#e8f7ff_0,#f6f1e8_34%,#f8fafc_70%)]">
+      <div className="mx-auto max-w-[1240px] space-y-4">
+        <Card className="overflow-hidden border-none bg-slate-950 text-white shadow-2xl shadow-slate-200">
             <div className="absolute -right-20 -top-24 h-56 w-56 rounded-full bg-cyan-400/30 blur-3xl" />
             <div className="absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-amber-300/20 blur-3xl" />
             <div className="relative">
@@ -520,91 +541,6 @@ const WorkflowView: React.FC = () => {
               </Space>
             </div>
           </Card>
-
-          <Card
-            title={<Space><ApartmentOutlined />Graph 模板</Space>}
-            className="border-none bg-white/85 shadow-xl shadow-slate-200/70 backdrop-blur"
-          >
-            <Space direction="vertical" className="w-full" size="middle">
-              {templates.map((template) => (
-                <button
-                  key={template.code}
-                  type="button"
-                  className={`w-full rounded-2xl border p-4 text-left transition ${
-                    selectedTemplateCode === template.code
-                      ? "border-slate-900 bg-slate-950 text-white shadow-lg"
-                      : "border-slate-200 bg-white hover:border-slate-400"
-                  }`}
-                  onClick={() => setTemplateCode(template.code)}
-                >
-                  <div className="mb-1 flex items-center justify-between gap-3">
-                    <span className="font-semibold">{template.name}</span>
-                    <Tag color={selectedTemplateCode === template.code ? "cyan" : "blue"}>{template.code}</Tag>
-                  </div>
-                  <p className={`mb-0 text-sm ${selectedTemplateCode === template.code ? "text-slate-300" : "text-slate-500"}`}>
-                    {template.description}
-                  </p>
-                </button>
-              ))}
-            </Space>
-          </Card>
-
-          <Card
-            title={<Space><ClockCircleOutlined />待审批事项</Space>}
-            className="border-none bg-white/85 shadow-xl shadow-slate-200/70 backdrop-blur"
-          >
-            <List
-              size="small"
-              dataSource={pendingApprovals}
-              locale={{ emptyText: "暂无待审批事项" }}
-              renderItem={(approval) => (
-                <List.Item
-                  className="cursor-pointer rounded-xl px-3 hover:bg-amber-50"
-                  onClick={() => {
-                    connectWorkflowStream(approval.workflowInstanceId);
-                    loadWorkflow(approval.workflowInstanceId).catch(console.error);
-                  }}
-                >
-                  <List.Item.Meta
-                    title={<span>{approval.title}</span>}
-                    description={<Tag color="orange">{approval.status}</Tag>}
-                  />
-                </List.Item>
-              )}
-            />
-          </Card>
-
-          <Card
-            title={<Space><HistoryOutlined />最近工作流</Space>}
-            className="border-none bg-white/85 shadow-xl shadow-slate-200/70 backdrop-blur"
-          >
-            <List
-              dataSource={workflows}
-              locale={{ emptyText: "暂无工作流" }}
-              renderItem={(workflow) => (
-                <List.Item
-                  className="cursor-pointer rounded-xl px-3 hover:bg-slate-50"
-                  onClick={() => {
-                    connectWorkflowStream(workflow.id);
-                    loadWorkflow(workflow.id).catch(console.error);
-                  }}
-                >
-                  <List.Item.Meta
-                    title={
-                      <Space>
-                        <span>{workflow.title}</span>
-                        <Tag color={statusColor(workflow.status)}>{workflow.status}</Tag>
-                      </Space>
-                    }
-                    description={workflow.currentStep || shortId(workflow.id)}
-                  />
-                </List.Item>
-              )}
-            />
-          </Card>
-        </aside>
-
-        <main className="min-w-0 space-y-4">
           <Card className="overflow-hidden border-none bg-slate-950 text-white shadow-2xl shadow-slate-300">
             <div className="absolute right-0 top-0 h-full w-1/2 bg-[radial-gradient(circle_at_top,#22d3ee55,transparent_55%)]" />
             <div className="relative grid grid-cols-[minmax(0,1fr)_280px] gap-6">
@@ -698,13 +634,47 @@ const WorkflowView: React.FC = () => {
                     </Typography.Text>
                   </div>
                   <div className="rounded-3xl bg-slate-950 p-4 text-slate-100">
-                    <Space className="mb-3">
-                      <CodeOutlined />
-                      <Typography.Text className="!text-slate-100">LangGraph4j Mermaid</Typography.Text>
+                    <Space direction="vertical" className="w-full" size="middle">
+                      <div>
+                        <Space className="mb-3">
+                          <ApartmentOutlined />
+                          <Typography.Text className="!text-slate-100">Graph 模板</Typography.Text>
+                        </Space>
+                        <div className="flex flex-col gap-2">
+                          {templates.map((template) => (
+                            <button
+                              key={template.code}
+                              type="button"
+                              className={`w-full rounded-2xl border p-3 text-left transition ${
+                                selectedTemplateCode === template.code
+                                  ? "border-cyan-300 bg-white/10 text-white"
+                                  : "border-white/10 bg-black/10 text-slate-300 hover:border-cyan-200"
+                              }`}
+                              onClick={() => setTemplateCode(template.code)}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="font-semibold">{template.name}</span>
+                                <Tag color={selectedTemplateCode === template.code ? "cyan" : "blue"}>
+                                  {template.code}
+                                </Tag>
+                              </div>
+                              <div className="mt-1 text-xs text-slate-400">
+                                {template.description}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <Space className="mb-3">
+                          <CodeOutlined />
+                          <Typography.Text className="!text-slate-100">LangGraph4j Mermaid</Typography.Text>
+                        </Space>
+                        <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-6 text-cyan-100">
+                          {selectedTemplate?.mermaid || "Graph definition loading..."}
+                        </pre>
+                      </div>
                     </Space>
-                    <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-6 text-cyan-100">
-                      {selectedTemplate?.mermaid || "Graph definition loading..."}
-                    </pre>
                   </div>
                 </div>
               </Card>
@@ -927,7 +897,6 @@ const WorkflowView: React.FC = () => {
               </div>
             </>
           )}
-        </main>
       </div>
     </div>
   );

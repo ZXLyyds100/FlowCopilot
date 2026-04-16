@@ -1,10 +1,9 @@
-import React, { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import React, { useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Card,
   Typography,
   Button,
-  Upload,
   Table,
   Popconfirm,
   Space,
@@ -17,20 +16,26 @@ import {
   DeleteOutlined,
   FileOutlined,
 } from "@ant-design/icons";
-import type { UploadProps } from "antd";
+import AddKnowledgeBaseModal from "../modals/AddKnowledgeBaseModal.tsx";
+import PageCanvas from "../shell/PageCanvas.tsx";
+import { useShellPage } from "../shell/useShellPage.ts";
 import { useKnowledgeBases } from "../../hooks/useKnowledgeBases.ts";
 import { useDocuments } from "../../hooks/useDocuments.ts";
 import { uploadDocument, type DocumentVO } from "../../api/api.ts";
+import KnowledgeBaseWorkspaceSidebar from "./knowledgeBaseView/KnowledgeBaseWorkspaceSidebar.tsx";
 
 const { Title, Text, Paragraph } = Typography;
 
 const KnowledgeBaseView: React.FC = () => {
+  const navigate = useNavigate();
   const { knowledgeBaseId } = useParams<{ knowledgeBaseId?: string }>();
-  const { knowledgeBases } = useKnowledgeBases();
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const { knowledgeBases, createKnowledgeBaseHandle } = useKnowledgeBases();
   const { documents, loading, refreshDocuments, deleteDocument } =
     useDocuments(knowledgeBaseId);
 
   const [uploading, setUploading] = useState(false);
+  const [isAddKnowledgeBaseModalOpen, setIsAddKnowledgeBaseModalOpen] = useState(false);
 
   // 查找当前知识库的详细信息
   const currentKnowledgeBase = useMemo(() => {
@@ -41,10 +46,7 @@ const KnowledgeBaseView: React.FC = () => {
     );
   }, [knowledgeBaseId, knowledgeBases]);
 
-  // 处理文件上传
-  const handleUpload: UploadProps["customRequest"] = async (options) => {
-    const { file, onSuccess, onError } = options;
-
+  const handleUpload = async (file: File) => {
     if (!knowledgeBaseId) {
       message.error("请先选择知识库");
       return;
@@ -53,17 +55,29 @@ const KnowledgeBaseView: React.FC = () => {
     setUploading(true);
 
     try {
-      await uploadDocument(knowledgeBaseId, file as File);
+      await uploadDocument(knowledgeBaseId, file);
       message.success("文档上传成功");
       await refreshDocuments();
-      onSuccess?.(file);
     } catch (error) {
       message.error(error instanceof Error ? error.message : "上传失败");
-      onError?.(error as Error);
     } finally {
       setUploading(false);
     }
   };
+
+  useShellPage({
+    title: currentKnowledgeBase?.name || "知识库",
+    description: currentKnowledgeBase?.description || "浏览知识库、上传文档并管理资料内容。",
+    primaryAction: knowledgeBaseId
+      ? {
+          label: "上传文档",
+          onClick: () => uploadInputRef.current?.click(),
+        }
+      : {
+          label: "新建知识库",
+          onClick: () => setIsAddKnowledgeBaseModalOpen(true),
+        },
+  });
 
   // 格式化文件大小
   const formatFileSize = (bytes: number): string => {
@@ -120,126 +134,106 @@ const KnowledgeBaseView: React.FC = () => {
     },
   ];
 
-  // 未选择知识库时的提示
-  if (!knowledgeBaseId) {
-    return (
-      <div className="flex flex-col h-full items-center justify-center p-6">
-        <Empty
-          image={<BookOutlined className="text-6xl text-gray-300" />}
-          description={
-            <div className="mt-4">
-              <Title level={4} type="secondary">
-                未选择知识库
-              </Title>
-              <Text type="secondary" className="text-sm">
-                请从左侧知识库列表中选择一个知识库查看详情
-              </Text>
-            </div>
-          }
-        />
-      </div>
-    );
-  }
-
-  // 知识库不存在
-  if (!currentKnowledgeBase) {
-    return (
-      <div className="flex flex-col h-full items-center justify-center p-6">
-        <Empty
-          description={
-            <div className="mt-4">
-              <Title level={4} type="secondary">
-                知识库不存在
-              </Title>
-              <Text type="secondary" className="text-sm">
-                请检查知识库 ID 是否正确
-              </Text>
-            </div>
-          }
-        />
-      </div>
-    );
-  }
-
-  // 显示知识库详情和文档列表
-  return (
-    <div className="flex flex-col h-full p-6 overflow-y-auto">
-      <div className="max-w-6xl w-full mx-auto">
-        <div className="mb-3">
-          <Card>
-            <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center text-3xl shrink-0">
-                <BookOutlined />
-              </div>
-              <div className="flex-1">
-                <Title level={3} className="mb-2">
-                  {currentKnowledgeBase.name}
-                </Title>
-                {currentKnowledgeBase.description && (
-                  <Paragraph className="text-gray-600 mb-0">
-                    {currentKnowledgeBase.description}
-                  </Paragraph>
-                )}
-                <Text type="secondary" className="text-sm">
-                  知识库 ID: {currentKnowledgeBase.knowledgeBaseId}
-                </Text>
-              </div>
-            </div>
-          </Card>
-        </div>
-        {/* 知识库信息卡片 */}
-
-        <div className="mb-3">
-          {/* 上传文档区域 */}
-          <Card title="上传文档">
-            <Upload
-              customRequest={handleUpload}
-              showUploadList={false}
-              accept=".md"
-              disabled={uploading}
-            >
-              <Button
-                type="primary"
-                icon={<UploadOutlined />}
-                loading={uploading}
-                size="large"
-              >
-                选择文件上传
-              </Button>
-            </Upload>
-            <Text type="secondary" className="block mt-2 text-xs">
-              支持格式: Markdown
-            </Text>
-          </Card>
-        </div>
-
-        <div className="mb-3">
-          {/* 文档列表 */}
-          <Card title={`文档列表 (${documents.length})`}>
-            {loading ? (
-              <div className="text-center py-8">
-                <Text type="secondary">加载中...</Text>
-              </div>
-            ) : documents.length === 0 ? (
-              <Empty
-                description={<Text type="secondary">暂无文档，请上传文档</Text>}
-              />
-            ) : (
-              <Table
-                columns={columns}
-                dataSource={documents}
-                rowKey="id"
-                pagination={{
-                  pageSize: 10,
-                  // showSizeChanger: true,
-                  showTotal: (total) => `共 ${total} 条`,
-                }}
-              />
-            )}
-          </Card>
-        </div>
-      </div>
+  const contentMain = !knowledgeBaseId ? (
+    <div className="flex h-full items-center justify-center rounded-3xl border border-[var(--shell-border)] bg-[var(--shell-surface)]">
+      <Empty description="请先从左侧选择一个知识库。" />
     </div>
+  ) : !currentKnowledgeBase ? (
+    <div className="flex h-full items-center justify-center rounded-3xl border border-[var(--shell-border)] bg-[var(--shell-surface)]">
+      <Empty description="知识库不存在，请检查当前选择。" />
+    </div>
+  ) : (
+    <div className="flex h-full flex-col gap-4 overflow-y-auto rounded-3xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-6">
+      <Card>
+        <div className="flex items-start gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--shell-canvas)] text-3xl">
+            <BookOutlined />
+          </div>
+          <div className="flex-1">
+            <Title level={3} className="mb-2">
+              {currentKnowledgeBase.name}
+            </Title>
+            {currentKnowledgeBase.description && (
+              <Paragraph className="mb-0 text-gray-600">
+                {currentKnowledgeBase.description}
+              </Paragraph>
+            )}
+            <Text type="secondary" className="text-sm">
+              知识库 ID: {currentKnowledgeBase.knowledgeBaseId}
+            </Text>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="上传文档">
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept=".md"
+          className="hidden"
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            if (file) {
+              await handleUpload(file);
+              event.target.value = "";
+            }
+          }}
+        />
+        <Button
+          type="primary"
+          icon={<UploadOutlined />}
+          loading={uploading}
+          size="large"
+          onClick={() => uploadInputRef.current?.click()}
+        >
+          选择文件上传
+        </Button>
+        <Text type="secondary" className="mt-2 block text-xs">
+          支持格式: Markdown
+        </Text>
+      </Card>
+
+      <Card title={`文档列表 (${documents.length})`}>
+        {loading ? (
+          <div className="py-8 text-center">
+            <Text type="secondary">加载中...</Text>
+          </div>
+        ) : documents.length === 0 ? (
+          <Empty description={<Text type="secondary">暂无文档，请上传文档</Text>} />
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={documents}
+            rowKey="id"
+            pagination={{
+              pageSize: 10,
+              showTotal: (total) => `共 ${total} 条`,
+            }}
+          />
+        )}
+      </Card>
+    </div>
+  );
+
+  return (
+    <>
+      <PageCanvas
+        secondary={(
+          <KnowledgeBaseWorkspaceSidebar
+            knowledgeBases={knowledgeBases}
+            selectedKnowledgeBaseId={knowledgeBaseId}
+            onCreateKnowledgeBase={() => setIsAddKnowledgeBaseModalOpen(true)}
+            onSelectKnowledgeBase={(id) => navigate(`/knowledge-base/${id}`)}
+          />
+        )}
+        main={contentMain}
+      />
+      <AddKnowledgeBaseModal
+        open={isAddKnowledgeBaseModalOpen}
+        onClose={() => setIsAddKnowledgeBaseModalOpen(false)}
+        createKnowledgeBaseHandle={createKnowledgeBaseHandle}
+      />
+    </>
   );
 };
 

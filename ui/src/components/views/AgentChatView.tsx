@@ -3,6 +3,9 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { message as antdMessage } from "antd";
 import AgentChatHistory from "./agentChatView/AgentChatHistory.tsx";
 import AgentChatInput from "./agentChatView/AgentChatInput.tsx";
+import AddAgentModal from "../modals/AddAgentModal.tsx";
+import PageCanvas from "../shell/PageCanvas.tsx";
+import { useShellPage } from "../shell/useShellPage.ts";
 import {
   createChatMessage,
   createChatSession,
@@ -11,6 +14,7 @@ import {
 } from "../../api/api.ts";
 import { useAgents } from "../../hooks/useAgents.ts";
 import { useChatSessions } from "../../hooks/useChatSessions.ts";
+import ChatWorkspaceSidebar from "./agentChatView/ChatWorkspaceSidebar.tsx";
 import EmptyAgentChatView from "./agentChatView/EmptyAgentChatView.tsx";
 import type { ChatMessageVO, SseMessage, SseMessageType } from "../../types";
 
@@ -19,8 +23,17 @@ const AgentChatView: React.FC = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
   const [loading, setLoading] = useState(false);
-  const { agents } = useAgents();
-  const { refreshChatSessions } = useChatSessions();
+  const [isAddAgentModalOpen, setIsAddAgentModalOpen] = useState(false);
+  const {
+    agents,
+    createAgentHandle,
+    updateAgentHandle,
+  } = useAgents();
+  const {
+    chatSessions,
+    loading: chatSessionsLoading,
+    refreshChatSessions,
+  } = useChatSessions();
 
   const [messages, setMessages] = useState<ChatMessageVO[]>([]);
 
@@ -29,6 +42,12 @@ const AgentChatView: React.FC = () => {
   };
 
   const [agentId, setAgentId] = useState<string>("");
+
+  useEffect(() => {
+    if (!chatSessionId && !agentId && agents.length > 0) {
+      setAgentId(agents[0].id);
+    }
+  }, [agentId, agents, chatSessionId]);
 
   const getChatMessages = useCallback(async () => {
     if (!chatSessionId) {
@@ -117,6 +136,17 @@ const AgentChatView: React.FC = () => {
     SseMessageType | undefined
   >(undefined);
 
+  useShellPage({
+    title: "聊天",
+    description: chatSessionId
+      ? "查看当前会话、运行状态和实时回复。"
+      : "开始新对话，并在同一工作区内切换会话与管理智能体。",
+    primaryAction: {
+      label: "新建对话",
+      onClick: () => navigate("/chat"),
+    },
+  });
+
   useEffect(() => {
     // sse 连接处理, 不是对话消息不开连接
     if (!chatSessionId) {
@@ -169,30 +199,52 @@ const AgentChatView: React.FC = () => {
     };
   }, [chatSessionId]);
 
-  // 如果没有 chatSessionId，显示提示界面
-  if (!chatSessionId) {
-    return (
-      <EmptyAgentChatView
-        agents={agents}
-        loading={loading}
-        handleSendMessage={handleSendMessage}
-      />
-    );
-  }
-
-  // 如果有 chatSessionId，显示正常的聊天界面
-  return (
-    <div className="flex flex-col h-full">
+  const conversationMain = chatSessionId ? (
+    <div className="flex h-full flex-col rounded-3xl border border-[var(--shell-border)] bg-[var(--shell-surface)]">
       <AgentChatHistory
         messages={messages}
         displayAgentStatus={displayAgentStatus}
         agentStatusText={agentStatusText}
         agentStatusType={agentStatusType}
       />
-      <div className="border-t border-gray-200 p-4 bg-white">
+      <div className="border-t border-[var(--shell-border)] bg-[var(--shell-surface)] p-4">
         <AgentChatInput onSend={handleSendMessage} />
       </div>
     </div>
+  ) : (
+    <EmptyAgentChatView
+      agents={agents}
+      loading={loading}
+      handleSendMessage={handleSendMessage}
+      selectedAgentId={agentId}
+      onSelectAgentId={setAgentId}
+    />
+  );
+
+  return (
+    <>
+      <PageCanvas
+        secondary={(
+          <ChatWorkspaceSidebar
+            agents={agents}
+            chatSessions={chatSessions}
+            currentSessionId={chatSessionId}
+            loading={chatSessionsLoading}
+            onCreateChat={() => navigate("/chat")}
+            onManageAgents={() => setIsAddAgentModalOpen(true)}
+            onSelectSession={(id) => navigate(`/chat/${id}`)}
+          />
+        )}
+        main={conversationMain}
+      />
+      <AddAgentModal
+        open={isAddAgentModalOpen}
+        onClose={() => setIsAddAgentModalOpen(false)}
+        createAgentHandle={createAgentHandle}
+        updateAgentHandle={updateAgentHandle}
+        editingAgent={null}
+      />
+    </>
   );
 };
 
