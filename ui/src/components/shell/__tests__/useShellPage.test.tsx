@@ -43,6 +43,33 @@ function ToggleShellPage() {
   );
 }
 
+function UpdatingShellPage() {
+  const [variant, setVariant] = useState<"draft" | "published">("draft");
+
+  useShellPage({
+    title: variant === "draft" ? "草稿工作流" : "已发布工作流",
+    description:
+      variant === "draft"
+        ? "当前显示草稿版本。"
+        : "当前显示发布后的版本。",
+    secondaryActions: [
+      {
+        label: variant === "draft" ? "预览" : "回滚",
+        onClick: () => undefined,
+      },
+    ],
+  });
+
+  return (
+    <button
+      type="button"
+      onClick={() => setVariant((current) => (current === "draft" ? "published" : "draft"))}
+    >
+      切换状态
+    </button>
+  );
+}
+
 describe("useShellPage", () => {
   it("keeps page state and drawer visibility stable across ordinary re-renders", async () => {
     const user = userEvent.setup();
@@ -92,5 +119,28 @@ describe("useShellPage", () => {
 
     expect(screen.getByRole("heading", { name: "工作流" })).toBeInTheDocument();
     expect(screen.getByText("运行 Graph 模板并查看实时执行状态。")).toBeInTheDocument();
+  });
+
+  it("reflects live shell copy updates after mount", async () => {
+    const user = userEvent.setup();
+
+    renderWithRouter(
+      <ShellProvider>
+        <AppShell>
+          <UpdatingShellPage />
+        </AppShell>
+      </ShellProvider>,
+      { route: "/workflow" },
+    );
+
+    expect(screen.getByRole("heading", { name: "草稿工作流" })).toBeInTheDocument();
+    expect(screen.getByText("当前显示草稿版本。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /预\s*览/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "切换状态" }));
+
+    expect(screen.getByRole("heading", { name: "已发布工作流" })).toBeInTheDocument();
+    expect(screen.getByText("当前显示发布后的版本。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /回\s*滚/ })).toBeInTheDocument();
   });
 });

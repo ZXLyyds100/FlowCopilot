@@ -1,14 +1,22 @@
-import { useEffect, useId, useRef } from "react";
-import { useShellContext, type ShellPageState } from "./ShellProvider";
+import { useEffect, useId } from "react";
+import { useShellRegistration, type ShellPageState } from "./ShellProvider";
 
 export function useShellPage(nextPage: ShellPageState) {
   const pageId = useId();
-  const { registerPage, unregisterPage } = useShellContext();
-  const initialPageRef = useRef(nextPage);
+  const { registerPage, unregisterPage } = useShellRegistration();
 
   useEffect(() => {
-    registerPage(pageId, initialPageRef.current);
-  }, [pageId, registerPage]);
+    registerPage(pageId, nextPage);
+  }, [
+    nextPage.description,
+    nextPage.detailContent,
+    nextPage.detailTitle,
+    nextPage.primaryAction,
+    nextPage.secondaryActions,
+    nextPage.title,
+    pageId,
+    registerPage,
+  ]);
 
   useEffect(() => {
     return () => {

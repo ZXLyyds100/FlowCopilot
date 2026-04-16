@@ -23,24 +23,34 @@ export interface ShellPageState {
   detailContent?: ReactNode;
 }
 
-export const DEFAULT_SHELL_PAGE_STATE: ShellPageState = {
+export interface ShellFallbackState {
+  title: string;
+  description: string;
+}
+
+export const DEFAULT_SHELL_FALLBACK: ShellFallbackState = {
   title: "FlowCopilot",
   description: "专业操作台",
 };
 
-interface ShellContextValue {
-  page: ShellPageState;
-  registerPage: (pageId: string, nextPage: ShellPageState) => void;
-  unregisterPage: (pageId: string) => void;
+interface ShellStateContextValue {
+  page: ShellPageState | null;
+  fallback: ShellFallbackState;
   isDetailDrawerOpen: boolean;
   openDetailDrawer: () => void;
   closeDetailDrawer: () => void;
 }
 
-const ShellContext = createContext<ShellContextValue | null>(null);
+interface ShellRegistrationContextValue {
+  registerPage: (pageId: string, nextPage: ShellPageState) => void;
+  unregisterPage: (pageId: string) => void;
+}
+
+const ShellStateContext = createContext<ShellStateContextValue | null>(null);
+const ShellRegistrationContext = createContext<ShellRegistrationContextValue | null>(null);
 
 export function ShellProvider({ children }: PropsWithChildren) {
-  const [page, setPageState] = useState<ShellPageState>(DEFAULT_SHELL_PAGE_STATE);
+  const [page, setPageState] = useState<ShellPageState | null>(null);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const activePageIdRef = useRef<string | null>(null);
 
@@ -60,7 +70,7 @@ export function ShellProvider({ children }: PropsWithChildren) {
 
     activePageIdRef.current = null;
     setIsDetailDrawerOpen(false);
-    setPageState(DEFAULT_SHELL_PAGE_STATE);
+    setPageState(null);
   }, []);
 
   const openDetailDrawer = useCallback(() => {
@@ -71,26 +81,47 @@ export function ShellProvider({ children }: PropsWithChildren) {
     setIsDetailDrawerOpen(false);
   }, []);
 
-  const value = useMemo(
+  const stateValue = useMemo(
     () => ({
       page,
-      registerPage,
-      unregisterPage,
+      fallback: DEFAULT_SHELL_FALLBACK,
       isDetailDrawerOpen,
       openDetailDrawer,
       closeDetailDrawer,
     }),
-    [closeDetailDrawer, isDetailDrawerOpen, openDetailDrawer, page, registerPage, unregisterPage],
+    [closeDetailDrawer, isDetailDrawerOpen, openDetailDrawer, page],
   );
 
-  return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>;
+  const registrationValue = useMemo(
+    () => ({
+      registerPage,
+      unregisterPage,
+    }),
+    [registerPage, unregisterPage],
+  );
+
+  return (
+    <ShellRegistrationContext.Provider value={registrationValue}>
+      <ShellStateContext.Provider value={stateValue}>{children}</ShellStateContext.Provider>
+    </ShellRegistrationContext.Provider>
+  );
 }
 
 export function useShellContext() {
-  const context = useContext(ShellContext);
+  const context = useContext(ShellStateContext);
 
   if (!context) {
     throw new Error("useShellContext must be used within a ShellProvider");
+  }
+
+  return context;
+}
+
+export function useShellRegistration() {
+  const context = useContext(ShellRegistrationContext);
+
+  if (!context) {
+    throw new Error("useShellRegistration must be used within a ShellProvider");
   }
 
   return context;

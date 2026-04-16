@@ -1,25 +1,25 @@
 import { Button } from "antd";
-import { DEFAULT_SHELL_PAGE_STATE, useShellContext, type ShellPageState } from "./ShellProvider";
+import { useShellContext, type ShellFallbackState, type ShellPageState } from "./ShellProvider";
 import type { ShellRouteMatch } from "./shellConfig";
 
 interface ShellCommandBarProps {
   activeRoute: ShellRouteMatch | null;
 }
 
-function resolvePageCopy(page: ShellPageState, activeRoute: ShellRouteMatch | null) {
-  const title = page.title === DEFAULT_SHELL_PAGE_STATE.title && activeRoute
-    ? activeRoute.title
-    : page.title;
-  const description = page.description === DEFAULT_SHELL_PAGE_STATE.description && activeRoute
-    ? activeRoute.description
-    : page.description;
+function resolvePageCopy(
+  page: ShellPageState | null,
+  activeRoute: ShellRouteMatch | null,
+  fallback: ShellFallbackState,
+) {
+  const title = page?.title ?? activeRoute?.title ?? fallback.title;
+  const description = page?.description ?? activeRoute?.description ?? fallback.description;
 
   return { title, description };
 }
 
 export default function ShellCommandBar({ activeRoute }: ShellCommandBarProps) {
-  const { page, openDetailDrawer } = useShellContext();
-  const { title, description } = resolvePageCopy(page, activeRoute);
+  const { fallback, page, openDetailDrawer } = useShellContext();
+  const { title, description } = resolvePageCopy(page, activeRoute, fallback);
 
   return (
     <header className="border-b border-[var(--shell-border)] bg-[var(--shell-surface)] px-4 py-4 md:px-6">
@@ -33,15 +33,15 @@ export default function ShellCommandBar({ activeRoute }: ShellCommandBarProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {page.secondaryActions?.map((action) => (
+          {page?.secondaryActions?.map((action) => (
             <Button key={action.label} onClick={action.onClick}>
               {action.label}
             </Button>
           ))}
-          {page.detailContent ? (
+          {page?.detailContent ? (
             <Button onClick={openDetailDrawer}>查看详情</Button>
           ) : null}
-          {page.primaryAction ? (
+          {page?.primaryAction ? (
             <Button type="primary" onClick={page.primaryAction.onClick}>
               {page.primaryAction.label}
             </Button>

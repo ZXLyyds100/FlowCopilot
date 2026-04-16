@@ -17,6 +17,8 @@ describe("AppShell", () => {
 
     expect(screen.getByRole("link", { name: "跳到主内容" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "工作流" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("heading", { name: "工作流" })).toBeInTheDocument();
+    expect(screen.getByText("运行 Graph 模板并查看实时执行状态。")).toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveTextContent("workspace body");
   });
 });
