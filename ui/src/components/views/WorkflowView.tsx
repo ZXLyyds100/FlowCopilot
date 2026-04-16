@@ -35,15 +35,20 @@ import {
   approveWorkflow,
   createWorkflow,
   getApprovals,
+  getWorkflowCheckpoints,
+  getWorkflowObservability,
   getWorkflow,
   getWorkflowTemplates,
   getWorkflows,
   getWorkflowTrace,
   rejectWorkflow,
   replayWorkflowFromNode,
+  updateWorkflowTemplate,
   type ApprovalRecordVO,
   type ArtifactVO,
   type ExecutionTraceRefVO,
+  type GetWorkflowObservabilityResponse,
+  type WorkflowExecutionCheckpointVO,
   type WorkflowInstanceVO,
   type WorkflowStepInstanceVO,
   type WorkflowTemplateVO,
@@ -51,6 +56,7 @@ import {
 import { BASE_URL } from "../../api/http.ts";
 import { useKnowledgeBases } from "../../hooks/useKnowledgeBases.ts";
 import WorkflowInspector from "./workflowView/WorkflowInspector.tsx";
+import WorkflowObservabilityPanel from "./workflowView/WorkflowObservabilityPanel.tsx";
 
 const { TextArea } = Input;
 
@@ -103,6 +109,15 @@ interface WorkflowStateSnapshot {
 interface WorkflowMetadata {
   knowledgeBaseId?: string;
   templateCode?: string;
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return "-";
+  return new Date(value).toLocaleString();
+}
+
+function isSubGraphStep(nodeKey: string) {
+  return nodeKey.includes(".");
 }
 
 interface WorkflowSseMessage {
@@ -205,8 +220,13 @@ const WorkflowView: React.FC = () => {
   const [currentWorkflow, setCurrentWorkflow] = useState<WorkflowInstanceVO | null>(null);
   const [steps, setSteps] = useState<WorkflowStepInstanceVO[]>([]);
   const [traces, setTraces] = useState<ExecutionTraceRefVO[]>([]);
+  const [checkpoints, setCheckpoints] = useState<WorkflowExecutionCheckpointVO[]>([]);
+  const [observability, setObservability] = useState<GetWorkflowObservabilityResponse | null>(null);
+  const [observabilityLoading, setObservabilityLoading] = useState(false);
   const [artifacts, setArtifacts] = useState<ArtifactVO[]>([]);
   const [streamStages, setStreamStages] = useState<Record<string, StreamStage>>({});
+  const [templateEditorValue, setTemplateEditorValue] = useState("");
+  const [templateSaving, setTemplateSaving] = useState(false);
   const [liveStatus, setLiveStatus] = useState("等待创建任务");
   const eventSourceRef = useRef<EventSource | null>(null);
   const { knowledgeBases } = useKnowledgeBases();
@@ -218,6 +238,7 @@ const WorkflowView: React.FC = () => {
   );
   const selectedTemplateCode = latestSnapshot?.templateCode || workflowMetadata?.templateCode || templateCode;
   const selectedTemplate = templates.find((template) => template.code === selectedTemplateCode) || templates[0];
+  const checkpointCount = checkpoints.length;
   const currentApprovalId = latestSnapshot?.approvalRecordId
     || pendingApprovals.find((approval) => approval.workflowInstanceId === currentWorkflow?.id)?.id;
   const completedStepCount = steps.filter((step) => step.status === "COMPLETED").length;
@@ -241,6 +262,15 @@ const WorkflowView: React.FC = () => {
       return (leftIndex === -1 ? 99 : leftIndex) - (rightIndex === -1 ? 99 : rightIndex);
     })
   ), [streamStages]);
+  const templateCapabilityTags = useMemo(() => {
+    if (!selectedTemplate) return [];
+    const tags: string[] = [];
+    if (selectedTemplate.supportsCheckpoint) tags.push("Checkpoint");
+    if (selectedTemplate.supportsSubGraph) tags.push("子图");
+    if (selectedTemplate.supportsParallel) tags.push("并行");
+    if (selectedTemplate.sourceType) tags.push(selectedTemplate.sourceType === "builtin" ? "内置模板" : "数据库模板");
+    return tags;
+  }, [selectedTemplate]);
 
   const refreshWorkflows = async () => {
     const response = await getWorkflows();
@@ -265,13 +295,36 @@ const WorkflowView: React.FC = () => {
     setTraces(response.traces);
   };
 
+  const refreshCheckpoints = async (workflowInstanceId: string) => {
+    const response = await getWorkflowCheckpoints(workflowInstanceId);
+    setCheckpoints(response.checkpoints);
+  };
+
+  const refreshObservability = async (workflowInstanceId: string) => {
+    setObservabilityLoading(true);
+    try {
+      const response = await getWorkflowObservability(workflowInstanceId);
+      setObservability(response);
+    } finally {
+      setObservabilityLoading(false);
+    }
+  };
+
   const loadWorkflow = async (workflowInstanceId: string) => {
     const response = await getWorkflow(workflowInstanceId);
     setCurrentWorkflow(response.workflow);
     setSteps(response.steps);
     setArtifacts(response.artifacts);
-    await refreshTrace(workflowInstanceId).catch(console.error);
+    await Promise.all([
+      refreshCheckpoints(workflowInstanceId).catch(console.error),
+      refreshTrace(workflowInstanceId).catch(console.error),
+      refreshObservability(workflowInstanceId).catch(console.error),
+    ]);
   };
+
+  useEffect(() => {
+    setTemplateEditorValue(selectedTemplate?.definitionJson || "");
+  }, [selectedTemplate?.code, selectedTemplate?.definitionJson]);
 
   const closeEventSource = () => {
     eventSourceRef.current?.close();
@@ -383,6 +436,8 @@ const WorkflowView: React.FC = () => {
     setArtifacts([]);
     setSteps([]);
     setTraces([]);
+    setCheckpoints([]);
+    setObservability(null);
     setLiveStatus("正在创建 Graph 工作流");
     try {
       const response = await createWorkflow({
@@ -446,13 +501,41 @@ const WorkflowView: React.FC = () => {
       connectWorkflowStream(currentWorkflow.id);
       await replayWorkflowFromNode(currentWorkflow.id, nodeKey);
       await loadWorkflow(currentWorkflow.id);
-      await refreshTrace(currentWorkflow.id);
       message.success(`已从 ${nodeMeta(nodeKey).name} 节点重新执行`);
     } catch (error) {
       console.error(error);
       message.error("节点重放失败");
     } finally {
       setReplayingNode(null);
+    }
+  };
+
+  const handleResetTemplateEditor = () => {
+    setTemplateEditorValue(selectedTemplate?.definitionJson || "");
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!selectedTemplate) return;
+    setTemplateSaving(true);
+    try {
+      const saved = await updateWorkflowTemplate(selectedTemplate.code, {
+        name: selectedTemplate.name,
+        description: selectedTemplate.description,
+        definitionJson: templateEditorValue,
+      });
+      setTemplates((prev) => prev.map((template) => (
+        template.code === saved.code ? saved : template
+      )));
+      setTemplateEditorValue(saved.definitionJson || "");
+      message.success("模板已保存");
+      if (currentWorkflow) {
+        await loadWorkflow(currentWorkflow.id);
+      }
+    } catch (error) {
+      console.error(error);
+      message.error("模板保存失败");
+    } finally {
+      setTemplateSaving(false);
     }
   };
 
@@ -566,7 +649,7 @@ const WorkflowView: React.FC = () => {
                   strokeColor={{ "0%": "#22d3ee", "100%": "#facc15" }}
                   trailColor="rgba(255,255,255,0.16)"
                 />
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
                   <div className="rounded-2xl bg-white/10 p-3">
                     <div className="text-slate-400">Trace</div>
                     <div className="font-semibold text-white">{shortId(latestSnapshot?.traceId || traces[0]?.traceId)}</div>
@@ -574,6 +657,10 @@ const WorkflowView: React.FC = () => {
                   <div className="rounded-2xl bg-white/10 p-3">
                     <div className="text-slate-400">Retry</div>
                     <div className="font-semibold text-white">{latestSnapshot?.retryCount || 0}</div>
+                  </div>
+                  <div className="rounded-2xl bg-white/10 p-3">
+                    <div className="text-slate-400">Checkpoint</div>
+                    <div className="font-semibold text-white">{checkpointCount}</div>
                   </div>
                 </div>
               </div>
@@ -640,6 +727,11 @@ const WorkflowView: React.FC = () => {
                           <ApartmentOutlined />
                           <Typography.Text className="!text-slate-100">Graph 模板</Typography.Text>
                         </Space>
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          {templateCapabilityTags.map((tag) => (
+                            <Tag key={tag} color="blue">{tag}</Tag>
+                          ))}
+                        </div>
                         <div className="flex flex-col gap-2">
                           {templates.map((template) => (
                             <button
@@ -673,6 +765,26 @@ const WorkflowView: React.FC = () => {
                         <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-6 text-cyan-100">
                           {selectedTemplate?.mermaid || "Graph definition loading..."}
                         </pre>
+                      </div>
+                      <div>
+                        <Space className="mb-3">
+                          <CodeOutlined />
+                          <Typography.Text className="!text-slate-100">模板 JSON</Typography.Text>
+                        </Space>
+                        <TextArea
+                          rows={12}
+                          value={templateEditorValue}
+                          onChange={(event) => setTemplateEditorValue(event.target.value)}
+                          className="font-mono"
+                        />
+                        <Space className="mt-3">
+                          <Button type="primary" loading={templateSaving} onClick={handleSaveTemplate}>
+                            保存模板
+                          </Button>
+                          <Button onClick={handleResetTemplateEditor}>
+                            重置
+                          </Button>
+                        </Space>
                       </div>
                     </Space>
                   </div>
@@ -756,6 +868,11 @@ const WorkflowView: React.FC = () => {
                 </Card>
               </div>
 
+              <WorkflowObservabilityPanel
+                observability={observability}
+                loading={observabilityLoading}
+              />
+
               {currentWorkflow.status === "WAITING_APPROVAL" && (
                 <Card title="人工审批" className="border-none bg-amber-50 shadow-xl shadow-amber-100">
                   <Space direction="vertical" className="w-full" size="middle">
@@ -804,6 +921,7 @@ const WorkflowView: React.FC = () => {
                           <Space>
                             <span>{step.nodeName}</span>
                             <Tag color={statusColor(step.status)}>{step.status}</Tag>
+                            {isSubGraphStep(step.nodeKey) && <Tag color="purple">子图步骤</Tag>}
                           </Space>
                         }
                         description={
@@ -835,6 +953,63 @@ const WorkflowView: React.FC = () => {
                     </List.Item>
                   )}
                 />
+              </Card>
+
+              <Card
+                title={<Space><HistoryOutlined />Checkpoint</Space>}
+                className="border-none bg-white/90 shadow-xl shadow-slate-200/70"
+              >
+                {checkpoints.length === 0 ? (
+                  <Empty description="暂无 checkpoint 记录" />
+                ) : (
+                  <List
+                    dataSource={checkpoints}
+                    renderItem={(checkpoint) => (
+                      <List.Item>
+                        <List.Item.Meta
+                          title={(
+                            <Space wrap>
+                              <span>{checkpoint.nodeKey}</span>
+                              <Tag color="blue">{checkpoint.checkpointType}</Tag>
+                              <Tag>{formatDateTime(checkpoint.createdAt)}</Tag>
+                            </Space>
+                          )}
+                          description={(
+                            <Space direction="vertical" className="w-full">
+                              <Typography.Text type="secondary">
+                                runId: {shortId(checkpoint.runId)} · traceId: {shortId(checkpoint.traceId)}
+                              </Typography.Text>
+                              <Collapse
+                                size="small"
+                                ghost
+                                items={[
+                                  {
+                                    key: `${checkpoint.id}-state`,
+                                    label: "查看状态快照",
+                                    children: (
+                                      <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-xs text-slate-100">
+                                        {checkpoint.stateSnapshot}
+                                      </pre>
+                                    ),
+                                  },
+                                  {
+                                    key: `${checkpoint.id}-meta`,
+                                    label: "查看元数据",
+                                    children: (
+                                      <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-xs text-slate-100">
+                                        {checkpoint.metadata || "{}"}
+                                      </pre>
+                                    ),
+                                  },
+                                ]}
+                              />
+                            </Space>
+                          )}
+                        />
+                      </List.Item>
+                    )}
+                  />
+                )}
               </Card>
 
               <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-4">

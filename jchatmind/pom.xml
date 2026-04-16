@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.5.10</version>
-        <relativePath/> <!-- lookup parent from repository -->
+        <relativePath/>
     </parent>
     <groupId>aliang</groupId>
     <artifactId>flowcopilot</artifactId>
@@ -31,9 +32,9 @@
         <langchain4j.version>1.13.0</langchain4j.version>
         <langchain4j.community.version>1.13.0-beta23</langchain4j.community.version>
         <langgraph4j.version>1.8.12</langgraph4j.version>
+        <opentelemetry.version>1.47.0</opentelemetry.version>
     </properties>
 
-    <!-- 自动管理 SpringAI 所有依赖的版本 -->
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -61,7 +62,6 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- 基础工具 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
@@ -92,14 +92,12 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- 解析 markdown 文件 -->
         <dependency>
             <groupId>com.vladsch.flexmark</groupId>
             <artifactId>flexmark-all</artifactId>
             <version>0.64.8</version>
         </dependency>
 
-        <!-- 数据访问 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
@@ -114,7 +112,6 @@
             <version>3.0.3</version>
         </dependency>
 
-        <!-- Spring AI 相关模型, deepseek 和 zhipuai -->
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j</artifactId>
@@ -131,8 +128,22 @@
             <groupId>org.bsc.langgraph4j</groupId>
             <artifactId>langgraph4j-core</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+            <version>${opentelemetry.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk</artifactId>
+            <version>${opentelemetry.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+            <version>${opentelemetry.version}</version>
+        </dependency>
 
-        <!-- 邮件发送 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>

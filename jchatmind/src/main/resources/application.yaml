@@ -43,6 +43,19 @@ flowcopilot:
         timeout: 60s
         log-requests: false
         log-responses: false
+  observability:
+    enabled: true
+    persist-enabled: true
+    otel-enabled: ${FLOWCOPILOT_OTEL_ENABLED:false}
+    service-name: ${FLOWCOPILOT_OBSERVABILITY_SERVICE_NAME:flowcopilot}
+    external-trace-base-url: ${FLOWCOPILOT_EXTERNAL_TRACE_BASE_URL:}
+    otel-endpoint: ${FLOWCOPILOT_OTEL_ENDPOINT:}
+    otel-timeout: 10s
+    langsmith:
+      enabled: ${FLOWCOPILOT_LANGSMITH_ENABLED:false}
+      endpoint: ${FLOWCOPILOT_LANGSMITH_ENDPOINT:https://api.smith.langchain.com/otel/v1/traces}
+      api-key: ${FLOWCOPILOT_LANGSMITH_API_KEY:}
+      project: ${FLOWCOPILOT_LANGSMITH_PROJECT:}
 
 document:
   storage:
