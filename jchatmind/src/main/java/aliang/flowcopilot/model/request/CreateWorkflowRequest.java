@@ -14,4 +14,5 @@ public class CreateWorkflowRequest {
     private String input;
 
     private String knowledgeBaseId;
+    private String templateCode;
 }

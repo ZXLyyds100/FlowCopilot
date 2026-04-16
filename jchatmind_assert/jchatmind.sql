@@ -162,3 +162,23 @@ CREATE INDEX idx_workflow_step_instance_workflow ON workflow_step_instance(workf
 CREATE INDEX idx_artifact_workflow ON artifact(workflow_instance_id, created_at ASC);
 CREATE INDEX idx_approval_record_status ON approval_record(status, created_at DESC);
 CREATE INDEX idx_approval_record_workflow ON approval_record(workflow_instance_id, created_at DESC);
+
+CREATE TABLE execution_trace_ref (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    workflow_instance_id UUID NOT NULL REFERENCES workflow_instance(id) ON DELETE CASCADE,
+    trace_id TEXT NOT NULL,
+    graph_template TEXT NOT NULL,
+    node_key TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    input_snapshot JSONB,
+    output_snapshot JSONB,
+    error_message TEXT,
+    duration_ms BIGINT,
+
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_execution_trace_ref_workflow ON execution_trace_ref(workflow_instance_id, created_at ASC);
+CREATE INDEX idx_execution_trace_ref_trace ON execution_trace_ref(trace_id, created_at ASC);

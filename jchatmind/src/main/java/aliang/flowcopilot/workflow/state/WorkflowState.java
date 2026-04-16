@@ -20,6 +20,11 @@ public class WorkflowState {
     private String title;
     private String userInput;
     private String knowledgeBaseId;
+    private String templateCode;
+    private String traceId;
+    private String currentNodeKey;
+    private List<String> graphPath;
+    private int retryCount;
     private String taskType;
     private String plan;
     private List<String> retrievedContents;

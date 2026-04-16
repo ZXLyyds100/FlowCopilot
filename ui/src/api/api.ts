@@ -274,6 +274,7 @@ export interface CreateWorkflowRequest {
   title?: string;
   input: string;
   knowledgeBaseId?: string;
+  templateCode?: string;
 }
 
 export interface CreateWorkflowResponse {
@@ -291,6 +292,37 @@ export interface GetWorkflowsResponse {
   workflows: WorkflowInstanceVO[];
 }
 
+export interface WorkflowTemplateVO {
+  code: string;
+  name: string;
+  description?: string;
+  mermaid?: string;
+}
+
+export interface GetWorkflowTemplatesResponse {
+  templates: WorkflowTemplateVO[];
+}
+
+export interface ExecutionTraceRefVO {
+  id: string;
+  workflowInstanceId: string;
+  traceId: string;
+  graphTemplate?: string;
+  nodeKey: string;
+  eventType: string;
+  status: string;
+  inputSnapshot?: string;
+  outputSnapshot?: string;
+  errorMessage?: string;
+  durationMs?: number;
+  createdAt?: string;
+}
+
+export interface GetWorkflowTraceResponse {
+  workflowInstanceId: string;
+  traces: ExecutionTraceRefVO[];
+}
+
 export async function createWorkflow(
   request: CreateWorkflowRequest,
 ): Promise<CreateWorkflowResponse> {
@@ -305,6 +337,23 @@ export async function getWorkflow(
 
 export async function getWorkflows(limit = 20): Promise<GetWorkflowsResponse> {
   return get<GetWorkflowsResponse>("/workflows", { limit });
+}
+
+export async function getWorkflowTemplates(): Promise<GetWorkflowTemplatesResponse> {
+  return get<GetWorkflowTemplatesResponse>("/workflows/templates");
+}
+
+export async function getWorkflowTrace(
+  workflowInstanceId: string,
+): Promise<GetWorkflowTraceResponse> {
+  return get<GetWorkflowTraceResponse>(`/workflows/${workflowInstanceId}/trace`);
+}
+
+export async function replayWorkflowFromNode(
+  workflowInstanceId: string,
+  nodeKey: string,
+): Promise<void> {
+  return post<void>(`/workflows/${workflowInstanceId}/replay/${nodeKey}`);
 }
 
 export interface ApprovalRecordVO {

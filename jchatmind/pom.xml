@@ -30,6 +30,7 @@
         <java.version>17</java.version>
         <langchain4j.version>1.13.0</langchain4j.version>
         <langchain4j.community.version>1.13.0-beta23</langchain4j.community.version>
+        <langgraph4j.version>1.8.12</langgraph4j.version>
     </properties>
 
     <!-- 自动管理 SpringAI 所有依赖的版本 -->
@@ -46,6 +47,13 @@
                 <groupId>dev.langchain4j</groupId>
                 <artifactId>langchain4j-community-bom</artifactId>
                 <version>${langchain4j.community.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.bsc.langgraph4j</groupId>
+                <artifactId>langgraph4j-bom</artifactId>
+                <version>${langgraph4j.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -118,6 +126,10 @@
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-community-zhipu-ai</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.bsc.langgraph4j</groupId>
+            <artifactId>langgraph4j-core</artifactId>
         </dependency>
 
         <!-- 邮件发送 -->

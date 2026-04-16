@@ -3,6 +3,8 @@ package aliang.flowcopilot.controller;
 import aliang.flowcopilot.model.common.ApiResponse;
 import aliang.flowcopilot.model.request.CreateWorkflowRequest;
 import aliang.flowcopilot.model.response.CreateWorkflowResponse;
+import aliang.flowcopilot.model.response.GetWorkflowTemplatesResponse;
+import aliang.flowcopilot.model.response.GetWorkflowTraceResponse;
 import aliang.flowcopilot.model.response.GetWorkflowResponse;
 import aliang.flowcopilot.model.response.GetWorkflowStepsResponse;
 import aliang.flowcopilot.model.response.GetWorkflowsResponse;
@@ -32,6 +34,11 @@ public class WorkflowController {
         return ApiResponse.success(workflowRuntimeService.getRecentWorkflows(limit));
     }
 
+    @GetMapping("/templates")
+    public ApiResponse<GetWorkflowTemplatesResponse> getWorkflowTemplates() {
+        return ApiResponse.success(workflowRuntimeService.getTemplates());
+    }
+
     @GetMapping("/{workflowInstanceId}")
     public ApiResponse<GetWorkflowResponse> getWorkflow(@PathVariable String workflowInstanceId) {
         return ApiResponse.success(workflowRuntimeService.getWorkflow(workflowInstanceId));
@@ -40,5 +47,19 @@ public class WorkflowController {
     @GetMapping("/{workflowInstanceId}/steps")
     public ApiResponse<GetWorkflowStepsResponse> getWorkflowSteps(@PathVariable String workflowInstanceId) {
         return ApiResponse.success(workflowRuntimeService.getSteps(workflowInstanceId));
+    }
+
+    @GetMapping("/{workflowInstanceId}/trace")
+    public ApiResponse<GetWorkflowTraceResponse> getWorkflowTrace(@PathVariable String workflowInstanceId) {
+        return ApiResponse.success(workflowRuntimeService.getTrace(workflowInstanceId));
+    }
+
+    @PostMapping("/{workflowInstanceId}/replay/{nodeKey}")
+    public ApiResponse<Void> replayFromNode(
+            @PathVariable String workflowInstanceId,
+            @PathVariable String nodeKey
+    ) {
+        workflowRuntimeService.replayFrom(workflowInstanceId, nodeKey);
+        return ApiResponse.success();
     }
 }
