@@ -23,6 +23,7 @@ public class WorkflowGraphDefinition {
     private String description;
     private List<WorkflowGraphNode> nodes;
     private List<WorkflowGraphEdge> edges;
+    private List<WorkflowSubGraphDefinition> subGraphs;
 
     public String firstNode(WorkflowState state) {
         return nextNode(START, state);
@@ -49,6 +50,16 @@ public class WorkflowGraphDefinition {
 
     public Map<String, WorkflowGraphNode> nodeMap() {
         return nodes.stream().collect(Collectors.toMap(WorkflowGraphNode::getKey, node -> node));
+    }
+
+    public WorkflowSubGraphDefinition subGraph(String subGraphCode) {
+        if (subGraphs == null || subGraphCode == null || subGraphCode.isBlank()) {
+            return null;
+        }
+        return subGraphs.stream()
+                .filter(subGraph -> subGraphCode.equals(subGraph.getCode()))
+                .findFirst()
+                .orElse(null);
     }
 
     private String normalize(String node) {

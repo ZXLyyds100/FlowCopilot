@@ -8,15 +8,18 @@ import aliang.flowcopilot.workflow.state.WorkflowSource;
 import aliang.flowcopilot.workflow.state.WorkflowState;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.stream.Collectors;
 
 /**
- * Produces the main second-stage task draft from plan and retrieved context.
+ * Produces the main execution draft from plan and retrieved context.
  */
 @Component
 @AllArgsConstructor
 public class ExecutorNode implements WorkflowNode {
+
+    private static final String NO_REVISION_REQUEST = "No human revision request";
 
     private final AgentRoleService agentRoleService;
     private final StructuredOutputService structuredOutputService;
@@ -37,37 +40,49 @@ public class ExecutorNode implements WorkflowNode {
                 .stream()
                 .map(this::formatSource)
                 .collect(Collectors.joining("\n"));
+        String revisionContext = formatRevisionContext(state);
         String fallback = """
-                ## 任务理解
+                ## Task Understanding
                 %s
 
-                ## 任务类型
+                ## Task Type
                 %s
 
-                ## 执行计划
+                ## Execution Plan
                 %s
 
-                ## 知识引用
+                ## Knowledge Sources
                 %s
 
-                ## 初稿
-                已基于 Planner Agent 的计划和 Retriever Agent 的引用资料生成第二阶段协作初稿。
-                后续由 Reviewer Agent 复核质量，并由 Reporter Agent 整理最终产物。
-                """.formatted(state.getUserInput(), state.getTaskType(), state.getPlan(), context);
+                ## Human Revision Request
+                %s
+
+                ## Draft
+                This draft is generated from the Planner Agent output and the Retriever Agent context.
+                """.formatted(state.getUserInput(), state.getTaskType(), state.getPlan(), context, revisionContext);
         WorkflowAgentProfile profile = agentRoleService.getProfile(WorkflowAgentRole.EXECUTOR);
         String draft = structuredOutputService.generateOrFallback(profile, """
-                用户任务：%s
-                任务类型：%s
-                执行计划：%s
-                知识引用：%s
-                请生成一份结构完整、可被 Reviewer 复核的初稿。
-                """.formatted(state.getUserInput(), state.getTaskType(), state.getPlan(), context), fallback);
+                User task: %s
+                Task type: %s
+                Execution plan: %s
+                Knowledge sources: %s
+                Human revision request: %s
+                If there is a human revision request, address it explicitly in the regenerated draft.
+                Generate a complete draft for the Reviewer Agent.
+                """.formatted(state.getUserInput(), state.getTaskType(), state.getPlan(), context, revisionContext), fallback);
         state.setDraft(draft.strip());
         state.setDraftResult(draft.strip());
         return state;
     }
 
+    private String formatRevisionContext(WorkflowState state) {
+        if (!StringUtils.hasText(state.getRevisionRequest())) {
+            return NO_REVISION_REQUEST;
+        }
+        return state.getRevisionRequest().trim();
+    }
+
     private String formatSource(WorkflowSource source) {
-        return "- [%d] %s：%s".formatted(source.getIndex(), source.getTitle(), source.getContent());
+        return "- [%d] %s: %s".formatted(source.getIndex(), source.getTitle(), source.getContent());
     }
 }

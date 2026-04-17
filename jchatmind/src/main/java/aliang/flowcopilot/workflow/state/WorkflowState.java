@@ -36,6 +36,7 @@ public class WorkflowState {
     private String approvalRecordId;
     private String approvalStatus;
     private String approvalComment;
+    private String revisionRequest;
     private boolean approvalRequired;
     private String finalOutput;
     private String artifactId;

@@ -8,6 +8,7 @@ import aliang.flowcopilot.workflow.state.WorkflowReview;
 import aliang.flowcopilot.workflow.state.WorkflowState;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +19,8 @@ import java.util.List;
 @Component
 @AllArgsConstructor
 public class ReviewerNode implements WorkflowNode {
+
+    private static final String NO_REVISION_REQUEST = "No human revision request";
 
     private final AgentRoleService agentRoleService;
     private final StructuredOutputService structuredOutputService;
@@ -37,34 +40,39 @@ public class ReviewerNode implements WorkflowNode {
         int score = score(state);
         List<String> suggestions = suggestions(state, score);
         boolean passed = score >= 70;
+        String revisionContext = formatRevisionContext(state);
         String fallback = """
-                ## 质量判断
-                %s，评分：%d/100。
+                ## Quality Decision
+                %s, score: %d/100.
 
-                ## 主要依据
-                - 是否覆盖用户任务：%s
-                - 是否包含执行计划：%s
-                - 是否使用知识引用：%s
+                ## Main Checks
+                - Covers the user task: %s
+                - Includes the execution plan: %s
+                - Uses retrieved knowledge: %s
+                - Responds to the human revision request: %s
 
-                ## 修改建议
+                ## Suggestions
                 %s
                 """.formatted(
-                passed ? "通过" : "需要修改",
+                passed ? "Passed" : "Needs changes",
                 score,
-                hasText(state.getDraft()) ? "是" : "否",
-                hasText(state.getPlan()) ? "是" : "否",
-                state.safeSources().isEmpty() ? "否" : "是",
+                hasText(state.getDraft()) ? "yes" : "no",
+                hasText(state.getPlan()) ? "yes" : "no",
+                state.safeSources().isEmpty() ? "no" : "yes",
+                hasText(state.getRevisionRequest()) ? "yes, " + revisionContext : "n/a",
                 String.join("\n", suggestions.stream().map(item -> "- " + item).toList())
         ).strip();
 
         WorkflowAgentProfile profile = agentRoleService.getProfile(WorkflowAgentRole.REVIEWER);
         String comment = structuredOutputService.generateOrFallback(profile, """
-                用户任务：%s
-                执行计划：%s
-                知识引用：%s
-                初稿：%s
-                请复核初稿质量，给出评分、风险和修改建议。
-                """.formatted(state.getUserInput(), state.getPlan(), state.getRetrievedContents(), state.getDraft()), fallback);
+                User task: %s
+                Execution plan: %s
+                Knowledge sources: %s
+                Draft: %s
+                Human revision request: %s
+                If there is a human revision request, explain whether the draft addresses it.
+                Review the draft quality and provide a score, risks, and revision suggestions.
+                """.formatted(state.getUserInput(), state.getPlan(), state.getRetrievedContents(), state.getDraft(), revisionContext), fallback);
 
         WorkflowReview review = WorkflowReview.builder()
                 .score(score)
@@ -97,21 +105,31 @@ public class ReviewerNode implements WorkflowNode {
     private List<String> suggestions(WorkflowState state, int score) {
         List<String> suggestions = new ArrayList<>();
         if (!hasText(state.getDraft())) {
-            suggestions.add("补充初稿内容，确保 Executor Agent 有明确产出。");
+            suggestions.add("Add draft content so the Executor Agent produces a concrete deliverable.");
         }
         if (state.safeSources().isEmpty()) {
-            suggestions.add("补充知识引用来源，让最终结果可追溯。");
+            suggestions.add("Add knowledge sources so the final output is traceable.");
+        }
+        if (hasText(state.getRevisionRequest())) {
+            suggestions.add("Check each human revision point and confirm the new draft addresses it.");
         }
         if (score < 90) {
-            suggestions.add("在最终产物中保留 Reviewer Agent 的质量意见，便于后续人工确认。");
+            suggestions.add("Preserve the Reviewer Agent feedback in the final artifact for human confirmation.");
         }
         if (suggestions.isEmpty()) {
-            suggestions.add("当前初稿结构完整，可进入 Reporter Agent 发布。");
+            suggestions.add("The draft is complete enough to move to the Reporter Agent.");
         }
         return suggestions;
     }
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private String formatRevisionContext(WorkflowState state) {
+        if (!StringUtils.hasText(state.getRevisionRequest())) {
+            return NO_REVISION_REQUEST;
+        }
+        return state.getRevisionRequest().trim();
     }
 }

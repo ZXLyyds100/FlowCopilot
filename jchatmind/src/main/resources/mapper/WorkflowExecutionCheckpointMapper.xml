@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="aliang.flowcopilot.mapper.WorkflowExecutionCheckpointMapper">
+
+    <resultMap id="BaseResultMap" type="aliang.flowcopilot.model.entity.WorkflowExecutionCheckpoint">
+        <id property="id" column="id" jdbcType="VARCHAR"/>
+        <result property="workflowInstanceId" column="workflow_instance_id" jdbcType="VARCHAR"/>
+        <result property="traceId" column="trace_id" jdbcType="VARCHAR"/>
+        <result property="runId" column="run_id" jdbcType="VARCHAR"/>
+        <result property="nodeKey" column="node_key" jdbcType="VARCHAR"/>
+        <result property="checkpointType" column="checkpoint_type" jdbcType="VARCHAR"/>
+        <result property="stateSnapshot" column="state_snapshot" jdbcType="VARCHAR"/>
+        <result property="metadata" column="metadata" jdbcType="VARCHAR"/>
+        <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="aliang.flowcopilot.model.entity.WorkflowExecutionCheckpoint">
+        INSERT INTO workflow_execution_checkpoint
+        (
+            id,
+            workflow_instance_id,
+            trace_id,
+            run_id,
+            node_key,
+            checkpoint_type,
+            state_snapshot,
+            metadata,
+            created_at
+        )
+        VALUES
+        (
+            CAST(#{id} AS uuid),
+            CAST(#{workflowInstanceId} AS uuid),
+            #{traceId},
+            #{runId},
+            #{nodeKey},
+            #{checkpointType},
+            CAST(#{stateSnapshot} AS jsonb),
+            CAST(#{metadata} AS jsonb),
+            #{createdAt}
+        )
+    </insert>
+
+    <select id="selectByWorkflowInstanceId" resultMap="BaseResultMap">
+        SELECT id,
+               workflow_instance_id,
+               trace_id,
+               run_id,
+               node_key,
+               checkpoint_type,
+               state_snapshot::text AS state_snapshot,
+               metadata::text AS metadata,
+               created_at
+        FROM workflow_execution_checkpoint
+        WHERE workflow_instance_id = CAST(#{workflowInstanceId} AS uuid)
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectLatestByWorkflowInstanceId" resultMap="BaseResultMap">
+        SELECT id,
+               workflow_instance_id,
+               trace_id,
+               run_id,
+               node_key,
+               checkpoint_type,
+               state_snapshot::text AS state_snapshot,
+               metadata::text AS metadata,
+               created_at
+        FROM workflow_execution_checkpoint
+        WHERE workflow_instance_id = CAST(#{workflowInstanceId} AS uuid)
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectLatestByWorkflowAndNode" resultMap="BaseResultMap">
+        SELECT id,
+               workflow_instance_id,
+               trace_id,
+               run_id,
+               node_key,
+               checkpoint_type,
+               state_snapshot::text AS state_snapshot,
+               metadata::text AS metadata,
+               created_at
+        FROM workflow_execution_checkpoint
+        WHERE workflow_instance_id = CAST(#{workflowInstanceId} AS uuid)
+          AND node_key = #{nodeKey}
+          AND checkpoint_type = #{checkpointType}
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+</mapper>

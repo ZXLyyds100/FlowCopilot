@@ -297,10 +297,21 @@ export interface WorkflowTemplateVO {
   name: string;
   description?: string;
   mermaid?: string;
+  definitionJson?: string;
+  sourceType?: string;
+  supportsCheckpoint?: boolean;
+  supportsSubGraph?: boolean;
+  supportsParallel?: boolean;
 }
 
 export interface GetWorkflowTemplatesResponse {
   templates: WorkflowTemplateVO[];
+}
+
+export interface UpdateWorkflowTemplateRequest {
+  name?: string;
+  description?: string;
+  definitionJson?: string;
 }
 
 export interface ExecutionTraceRefVO {
@@ -323,6 +334,84 @@ export interface GetWorkflowTraceResponse {
   traces: ExecutionTraceRefVO[];
 }
 
+export interface WorkflowExecutionCheckpointVO {
+  id: string;
+  workflowInstanceId: string;
+  traceId: string;
+  runId: string;
+  nodeKey: string;
+  checkpointType: string;
+  stateSnapshot: string;
+  metadata?: string;
+  createdAt?: string;
+}
+
+export interface GetWorkflowCheckpointsResponse {
+  workflowInstanceId: string;
+  checkpoints: WorkflowExecutionCheckpointVO[];
+}
+
+export interface WorkflowObservationSummaryVO {
+  totalSpans: number;
+  workflowRuns: number;
+  nodeRuns: number;
+  llmCalls: number;
+  toolCalls: number;
+  retrievalCalls: number;
+  errorCount: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  estimatedCostUsd?: number;
+  exporterStatus: string;
+  latestTraceId?: string;
+}
+
+export interface WorkflowObservationSpanVO {
+  id: string;
+  runId: string;
+  traceId: string;
+  spanId: string;
+  parentSpanId?: string;
+  workflowInstanceId: string;
+  nodeKey?: string;
+  spanType: string;
+  name: string;
+  status: string;
+  inputSummary?: string;
+  outputSummary?: string;
+  errorMessage?: string;
+  attributesJson?: string;
+  modelName?: string;
+  responseId?: string;
+  finishReason?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  estimatedCostUsd?: number;
+  startedAt?: string;
+  endedAt?: string;
+  durationMs?: number;
+  children: WorkflowObservationSpanVO[];
+}
+
+export interface WorkflowObservationExternalTraceVO {
+  enabled: boolean;
+  provider: string;
+  status: string;
+  traceId?: string;
+  projectName?: string;
+  url?: string;
+  lastErrorMessage?: string;
+}
+
+export interface GetWorkflowObservabilityResponse {
+  workflowInstanceId: string;
+  summary: WorkflowObservationSummaryVO;
+  spans: WorkflowObservationSpanVO[];
+  externalTrace: WorkflowObservationExternalTraceVO;
+}
+
 export async function createWorkflow(
   request: CreateWorkflowRequest,
 ): Promise<CreateWorkflowResponse> {
@@ -343,10 +432,44 @@ export async function getWorkflowTemplates(): Promise<GetWorkflowTemplatesRespon
   return get<GetWorkflowTemplatesResponse>("/workflows/templates");
 }
 
+export async function updateWorkflowTemplate(
+  templateCode: string,
+  request: UpdateWorkflowTemplateRequest,
+): Promise<WorkflowTemplateVO> {
+  return fetch(`${BASE_URL}/workflows/templates/${templateCode}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(request),
+  }).then(async (response) => {
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const apiResponse = await response.json();
+    if (apiResponse.code !== 200) {
+      throw new Error(apiResponse.message || "更新模板失败");
+    }
+    return apiResponse.data as WorkflowTemplateVO;
+  });
+}
+
 export async function getWorkflowTrace(
   workflowInstanceId: string,
 ): Promise<GetWorkflowTraceResponse> {
   return get<GetWorkflowTraceResponse>(`/workflows/${workflowInstanceId}/trace`);
+}
+
+export async function getWorkflowCheckpoints(
+  workflowInstanceId: string,
+): Promise<GetWorkflowCheckpointsResponse> {
+  return get<GetWorkflowCheckpointsResponse>(`/workflows/${workflowInstanceId}/checkpoints`);
+}
+
+export async function getWorkflowObservability(
+  workflowInstanceId: string,
+): Promise<GetWorkflowObservabilityResponse> {
+  return get<GetWorkflowObservabilityResponse>(`/workflows/${workflowInstanceId}/observability`);
 }
 
 export async function replayWorkflowFromNode(

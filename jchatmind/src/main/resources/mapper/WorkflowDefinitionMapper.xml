@@ -60,4 +60,33 @@
         WHERE code = #{code}
         LIMIT 1
     </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT id,
+               code,
+               name,
+               description,
+               definition::text AS definition,
+               created_at,
+               updated_at
+        FROM workflow_definition
+        ORDER BY created_at ASC
+    </select>
+
+    <update id="updateByCode" parameterType="aliang.flowcopilot.model.entity.WorkflowDefinition">
+        UPDATE workflow_definition
+        <set>
+            <if test="name != null">
+                name = #{name},
+            </if>
+            <if test="description != null">
+                description = #{description},
+            </if>
+            <if test="definition != null">
+                definition = CAST(#{definition} AS jsonb),
+            </if>
+            updated_at = NOW()
+        </set>
+        WHERE code = #{code}
+    </update>
 </mapper>

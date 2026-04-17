@@ -13,4 +13,6 @@ public class WorkflowGraphNode {
     private String name;
     private String role;
     private boolean subGraph;
+    private String subGraphCode;
+    private boolean checkpointEnabled;
 }

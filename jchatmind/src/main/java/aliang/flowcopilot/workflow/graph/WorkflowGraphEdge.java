@@ -4,8 +4,6 @@ import aliang.flowcopilot.workflow.state.WorkflowState;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.function.Predicate;
-
 /**
  * Directed graph edge. Conditional edges evaluate a predicate against WorkflowState.
  */
@@ -16,9 +14,18 @@ public class WorkflowGraphEdge {
     private String target;
     private String label;
     private boolean conditional;
-    private Predicate<WorkflowState> condition;
+    private String conditionKey;
 
     public boolean matches(WorkflowState state) {
-        return condition == null || condition.test(state);
+        if (!conditional || conditionKey == null || conditionKey.isBlank()) {
+            return true;
+        }
+        return switch (conditionKey) {
+            case "review_retry" -> state.getReview() != null && !state.getReview().isPassed() && state.getRetryCount() < 1;
+            case "review_pass" -> state.getReview() == null || state.getReview().isPassed() || state.getRetryCount() >= 1;
+            case "has_kb" -> state.getKnowledgeBaseId() != null && !state.getKnowledgeBaseId().isBlank();
+            case "no_kb" -> state.getKnowledgeBaseId() == null || state.getKnowledgeBaseId().isBlank();
+            default -> true;
+        };
     }
 }
