@@ -25,7 +25,7 @@ FlowCopilot AI 是一个基于 `Spring Boot + LangChain4j + LangGraph4j + React`
 | 可观测性 | 支持本地 Observation、Trace、Checkpoint、Token/Cost 字段和 OTLP/LangSmith 扩展 |
 | 前端展示 | 支持类 ChatGPT/Gemini 的实时流式输出、工作流看板、图谱、审批和结果区 |
 
-> 截图占位 01：建议插入“项目首页 / 工作台总览”截图，展示左侧导航、任务输入、工作流看板和整体 UI 质感。
+<img width="1470" height="832" alt="image" src="https://github.com/user-attachments/assets/91a609c8-57d3-4bb1-9983-8c4df72a44bb" />
 
 ## 为什么做这个项目
 
