@@ -1,5 +1,5 @@
-import { Alert, Button, Card, Collapse, Empty, Space, Tag, Typography } from "antd";
-import { BranchesOutlined, LinkOutlined, RadarChartOutlined } from "@ant-design/icons";
+import { Alert, Card, Collapse, Empty, Space, Tag, Typography } from "antd";
+import { RadarChartOutlined } from "@ant-design/icons";
 import type {
   GetWorkflowObservabilityResponse,
   WorkflowObservationSpanVO,
@@ -10,12 +10,47 @@ interface WorkflowObservabilityPanelProps {
   loading?: boolean;
 }
 
+type StageKey = "knowledge_retrieval" | "vectorization" | "vector_search";
+
+type DiagnosticCard = {
+  key: StageKey;
+  title: string;
+  description: string;
+  totalDurationMs: number;
+  count: number;
+  maxDurationMs: number;
+  detailLines: string[];
+  isSlowest: boolean;
+  hasData: boolean;
+};
+
 const SPAN_TYPE_LABELS: Record<string, string> = {
   workflow_run: "工作流",
   node_run: "节点",
   llm_call: "模型调用",
   tool_call: "工具调用",
   retrieval_call: "检索调用",
+};
+
+const STAGE_META: Record<
+  StageKey,
+  {
+    title: string;
+    description: string;
+  }
+> = {
+  knowledge_retrieval: {
+    title: "知识库检索",
+    description: "展示检索总链路耗时，方便判断知识库阶段是否是瓶颈。",
+  },
+  vectorization: {
+    title: "向量化",
+    description: "展示查询向量生成耗时，便于判断 embedding 侧开销。",
+  },
+  vector_search: {
+    title: "向量检索",
+    description: "展示向量库检索耗时，便于判断索引命中与召回效率。",
+  },
 };
 
 function statusColor(status?: string) {
@@ -45,7 +80,60 @@ function formatUsd(value?: number) {
   return `$${value.toFixed(6)}`;
 }
 
-function renderTextBlock(label: string, value?: string, extraClassName = "text-slate-700") {
+function formatDuration(value?: number) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "暂无数据";
+  if (value < 1000) return `${value} ms`;
+  return `${(value / 1000).toFixed(value >= 10_000 ? 1 : 2)} s`;
+}
+
+function parseAttributes(attributesJson?: string): Record<string, unknown> {
+  if (!attributesJson || attributesJson === "{}") return {};
+
+  try {
+    const parsed = JSON.parse(attributesJson) as Record<string, unknown>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function readString(
+  attributes: Record<string, unknown>,
+  ...keys: string[]
+): string | undefined {
+  for (const key of keys) {
+    const value = attributes[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function readNumber(
+  attributes: Record<string, unknown>,
+  ...keys: string[]
+): number | undefined {
+  for (const key of keys) {
+    const value = attributes[key];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return undefined;
+}
+
+function renderTextBlock(
+  label: string,
+  value?: string,
+  extraClassName = "text-slate-700",
+) {
   if (!value) return null;
   return (
     <div>
@@ -66,6 +154,167 @@ function renderMetric(label: string, value: string | number) {
   );
 }
 
+function flattenSpans(spans: WorkflowObservationSpanVO[]): WorkflowObservationSpanVO[] {
+  return spans.flatMap((span) => [span, ...flattenSpans(span.children || [])]);
+}
+
+function detectStageKey(span: WorkflowObservationSpanVO): StageKey | null {
+  const attributes = parseAttributes(span.attributesJson);
+  const explicitStage = readString(attributes, "stageKind", "stage", "phase", "diagnosticStage");
+  if (explicitStage === "knowledge_retrieval") return "knowledge_retrieval";
+  if (explicitStage === "vectorization") return "vectorization";
+  if (explicitStage === "vector_search") return "vector_search";
+
+  const haystacks = [
+    span.spanType,
+    span.name,
+    span.nodeKey,
+    span.modelName,
+    span.inputSummary,
+    span.outputSummary,
+    span.attributesJson,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (
+    haystacks.includes("knowledge retrieval")
+    || haystacks.includes("knowledge_retrieval")
+    || haystacks.includes("retriever")
+  ) {
+    return "knowledge_retrieval";
+  }
+  if (
+    haystacks.includes("vectorization")
+    || haystacks.includes("embedding")
+    || haystacks.includes("embed")
+    || haystacks.includes("bge-m3")
+  ) {
+    return "vectorization";
+  }
+  if (
+    haystacks.includes("vector search")
+    || haystacks.includes("vector_search")
+    || haystacks.includes("pgvector")
+  ) {
+    return "vector_search";
+  }
+
+  return null;
+}
+
+function buildStageDetailLines(
+  stageKey: StageKey,
+  representativeSpan?: WorkflowObservationSpanVO,
+): string[] {
+  if (!representativeSpan) {
+    return ["暂无埋点数据"];
+  }
+
+  const attributes = parseAttributes(representativeSpan.attributesJson);
+  const lines: string[] = [];
+
+  if (stageKey === "knowledge_retrieval") {
+    const knowledgeBaseId = readString(attributes, "knowledgeBaseId");
+    const sourceCount = readNumber(attributes, "sourceCount", "hitCount");
+
+    if (knowledgeBaseId) {
+      lines.push(`知识库 ID: ${knowledgeBaseId}`);
+    }
+    if (typeof sourceCount === "number") {
+      lines.push(`召回结果: ${sourceCount}`);
+    }
+    if (lines.length === 0) {
+      lines.push("检索链路已埋点");
+    }
+  }
+
+  if (stageKey === "vectorization") {
+    const modelName =
+      representativeSpan.modelName
+      || readString(attributes, "embeddingModel", "model", "modelName");
+    const dimensions = readNumber(attributes, "embeddingDimensions", "vectorDimensions");
+
+    if (modelName) {
+      lines.push(`模型: ${modelName}`);
+    }
+    if (typeof dimensions === "number") {
+      lines.push(`维度: ${dimensions}`);
+    }
+    if (lines.length === 0) {
+      lines.push("向量化阶段已埋点");
+    }
+  }
+
+  if (stageKey === "vector_search") {
+    const topK = readNumber(attributes, "topK");
+    const hitCount = readNumber(attributes, "hitCount", "sourceCount");
+    const backend = readString(attributes, "searchBackend");
+
+    if (typeof topK === "number") {
+      lines.push(`TopK: ${topK}`);
+    }
+    if (typeof hitCount === "number") {
+      lines.push(`命中: ${hitCount}`);
+    }
+    if (backend) {
+      lines.push(`引擎: ${backend}`);
+    }
+    if (lines.length === 0) {
+      lines.push("向量检索阶段已埋点");
+    }
+  }
+
+  return lines;
+}
+
+function buildDiagnosticCards(spans: WorkflowObservationSpanVO[]): DiagnosticCard[] {
+  const flattened = flattenSpans(spans);
+  const grouped = new Map<StageKey, WorkflowObservationSpanVO[]>();
+
+  flattened.forEach((span) => {
+    const stageKey = detectStageKey(span);
+    if (!stageKey) return;
+
+    const current = grouped.get(stageKey) || [];
+    current.push(span);
+    grouped.set(stageKey, current);
+  });
+
+  const slowestStageKey = (Object.keys(STAGE_META) as StageKey[])
+    .map((stageKey) => ({
+      stageKey,
+      totalDurationMs: (grouped.get(stageKey) || []).reduce(
+        (sum, span) => sum + (span.durationMs || 0),
+        0,
+      ),
+    }))
+    .filter((item) => item.totalDurationMs > 0)
+    .sort((left, right) => right.totalDurationMs - left.totalDurationMs)[0]?.stageKey;
+
+  return (Object.keys(STAGE_META) as StageKey[]).map((stageKey) => {
+    const matches = grouped.get(stageKey) || [];
+    const totalDurationMs = matches.reduce((sum, span) => sum + (span.durationMs || 0), 0);
+    const maxDurationMs = matches.reduce((max, span) => Math.max(max, span.durationMs || 0), 0);
+    const representativeSpan = [...matches].sort(
+      (left, right) => (right.durationMs || 0) - (left.durationMs || 0),
+    )[0];
+
+    return {
+      key: stageKey,
+      title: STAGE_META[stageKey].title,
+      description: STAGE_META[stageKey].description,
+      totalDurationMs,
+      count: matches.length,
+      maxDurationMs,
+      detailLines: buildStageDetailLines(stageKey, representativeSpan),
+      isSlowest: slowestStageKey === stageKey,
+      hasData: matches.length > 0,
+    };
+  });
+}
+
 function LlmUsageBlock({ span }: { span: WorkflowObservationSpanVO }) {
   if (
     span.spanType !== "llm_call"
@@ -82,14 +331,14 @@ function LlmUsageBlock({ span }: { span: WorkflowObservationSpanVO }) {
       <div className="rounded-2xl bg-slate-50 p-3">
         <Typography.Text type="secondary">模型信息</Typography.Text>
         <div className="mt-1 text-slate-700">{span.modelName || "未返回模型名"}</div>
-        <div className="mt-1 text-xs text-slate-500">结束原因：{span.finishReason || "-"}</div>
+        <div className="mt-1 text-xs text-slate-500">结束原因: {span.finishReason || "-"}</div>
       </div>
       <div className="rounded-2xl bg-slate-50 p-3">
         <Typography.Text type="secondary">Token / 花销</Typography.Text>
         <div className="mt-1 text-slate-700">
           输入 {span.inputTokens ?? "-"} / 输出 {span.outputTokens ?? "-"} / 总计 {span.totalTokens ?? "-"}
         </div>
-        <div className="mt-1 text-xs text-slate-500">估算成本：{formatUsd(span.estimatedCostUsd)}</div>
+        <div className="mt-1 text-xs text-slate-500">估算成本: {formatUsd(span.estimatedCostUsd)}</div>
       </div>
     </div>
   );
@@ -111,7 +360,7 @@ function ObservationTreeNode({ span, depth = 0 }: { span: WorkflowObservationSpa
             <Tag color={statusColor(span.status)}>{span.status}</Tag>
           </Space>
           <Typography.Text type="secondary">
-            {typeof span.durationMs === "number" ? `${span.durationMs} ms` : "进行中"}
+            {typeof span.durationMs === "number" ? formatDuration(span.durationMs) : "进行中"}
           </Typography.Text>
         </div>
 
@@ -172,15 +421,50 @@ function ObservationTreeNode({ span, depth = 0 }: { span: WorkflowObservationSpa
   );
 }
 
+function DiagnosticStageCard({ card }: { card: DiagnosticCard }) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <Space wrap size={8}>
+            <Typography.Text strong>{card.title}</Typography.Text>
+            {card.isSlowest && <Tag color="red">最慢阶段</Tag>}
+          </Space>
+          <Typography.Paragraph className="!mb-0 mt-2 text-sm text-slate-500">
+            {card.description}
+          </Typography.Paragraph>
+        </div>
+        <div className="text-right">
+          <div className="text-3xl font-semibold text-slate-900">
+            {card.hasData ? formatDuration(card.totalDurationMs) : "暂无埋点"}
+          </div>
+          <div className="mt-1 text-xs text-slate-500">
+            累计耗时 · 调用 {card.count} 次
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+        <div className="text-sm text-slate-600">
+          最大单次: <span className="font-medium text-slate-900">{formatDuration(card.maxDurationMs)}</span>
+        </div>
+        <div className="mt-3 space-y-1 text-sm text-slate-600">
+          {card.detailLines.map((line) => (
+            <div key={`${card.key}-${line}`}>{line}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function WorkflowObservabilityPanel({
   observability,
   loading = false,
 }: WorkflowObservabilityPanelProps) {
   const summary = observability?.summary;
-  const externalTrace = observability?.externalTrace;
   const spans = observability?.spans || [];
-  const exporterStatus = summary?.exporterStatus || "not_instrumented";
-  const providerName = externalTrace?.provider === "langsmith" ? "LangSmith" : (externalTrace?.provider || "local");
+  const diagnosticCards = buildDiagnosticCards(spans);
 
   return (
     <Card
@@ -189,7 +473,7 @@ export default function WorkflowObservabilityPanel({
       className="border-none bg-white/90 shadow-xl shadow-slate-200/70"
     >
       {!observability ? (
-        <Empty description="选择一个工作流后，这里会展示可观测树和外部 Trace 状态。" />
+        <Empty description="选择一个工作流后，这里会展示执行指标、关键阶段诊断和完整的 Span 树。" />
       ) : (
         <Space direction="vertical" className="w-full" size="large">
           <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
@@ -205,62 +489,17 @@ export default function WorkflowObservabilityPanel({
             {renderMetric("错误数", summary?.errorCount ?? 0)}
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <Space className="mb-3">
-                <BranchesOutlined />
-                <Typography.Text strong>导出状态</Typography.Text>
-                <Tag color={exporterStatus === "error" ? "red" : exporterStatus === "enabled" ? "green" : "default"}>
-                  {exporterStatus}
-                </Tag>
-              </Space>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div>
-                  <Typography.Text type="secondary">Provider</Typography.Text>
-                  <div className="mt-1 text-slate-700">{providerName}</div>
-                </div>
-                <div>
-                  <Typography.Text type="secondary">项目</Typography.Text>
-                  <div className="mt-1 text-slate-700">{externalTrace?.projectName || "未配置"}</div>
-                </div>
-                <div>
-                  <Typography.Text type="secondary">外部 Trace 状态</Typography.Text>
-                  <div className="mt-1 text-slate-700">{externalTrace?.status || "not_instrumented"}</div>
-                </div>
-                <div>
-                  <Typography.Text type="secondary">最新 Trace</Typography.Text>
-                  <div className="mt-1 break-all font-mono text-xs text-slate-700">
-                    {externalTrace?.traceId || summary?.latestTraceId || "-"}
-                  </div>
-                </div>
-              </div>
-              {externalTrace?.lastErrorMessage && (
-                <Alert className="mt-3" type="error" showIcon message={externalTrace.lastErrorMessage} />
-              )}
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <div className="mb-4">
+              <Typography.Text strong>关键阶段诊断</Typography.Text>
+              <Typography.Paragraph className="!mb-0 mt-2 text-sm text-slate-500">
+                平台内树形观测会优先展示知识库检索、向量化、向量检索等关键阶段，便于定位慢点。
+              </Typography.Paragraph>
             </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <Typography.Text strong>外部 Trace</Typography.Text>
-              <div className="mt-3 space-y-2 text-sm">
-                <div>
-                  <Typography.Text type="secondary">Trace 链接</Typography.Text>
-                  <div className="mt-2">
-                    {externalTrace?.url ? (
-                      <Button type="link" href={externalTrace.url} target="_blank" icon={<LinkOutlined />}>
-                        打开外部 Trace
-                      </Button>
-                    ) : (
-                      <Typography.Text type="secondary">当前未配置可跳转的外部 Trace 链接。</Typography.Text>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <Typography.Text type="secondary">说明</Typography.Text>
-                  <Typography.Paragraph className="!mb-0 mt-1 text-slate-600">
-                    当前面板继续保留平台内树形观测，外部系统只作为补充跳转入口，不替换原有 Trace 时间线。
-                  </Typography.Paragraph>
-                </div>
-              </div>
+            <div className="grid gap-4 xl:grid-cols-3">
+              {diagnosticCards.map((card) => (
+                <DiagnosticStageCard key={card.key} card={card} />
+              ))}
             </div>
           </div>
 
@@ -269,7 +508,7 @@ export default function WorkflowObservabilityPanel({
               type="info"
               showIcon
               message="当前工作流还没有可观测 Span 数据。"
-              description="历史工作流仍可在原有 Trace 时间线里查看；新的已埋点运行会在这里显示为树形 Span。"
+              description="新触发的已埋点运行会在这里展示为树形 Span，关键阶段诊断也会随之更新。"
             />
           ) : (
             <Space direction="vertical" className="w-full" size="middle">

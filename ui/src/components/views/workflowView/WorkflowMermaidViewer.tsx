@@ -1,6 +1,6 @@
 import { MinusOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { Button, Space, Typography } from "antd";
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import WorkflowMermaid from "./WorkflowMermaid.tsx";
 
 interface WorkflowMermaidViewerProps {

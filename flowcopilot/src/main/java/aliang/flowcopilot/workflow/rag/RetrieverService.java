@@ -65,6 +65,7 @@ public class RetrieverService {
     private Map<String, Object> retrievalAttributes(String knowledgeBaseId) {
         Map<String, Object> attributes = new LinkedHashMap<>();
         attributes.put("knowledgeBaseId", knowledgeBaseId == null ? "" : knowledgeBaseId);
+        attributes.put("stageKind", "knowledge_retrieval");
         return attributes;
     }
 }
