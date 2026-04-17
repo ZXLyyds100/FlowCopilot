@@ -24,6 +24,11 @@ type DiagnosticCard = {
   hasData: boolean;
 };
 
+type TimeRange = {
+  startMs: number;
+  endMs: number;
+};
+
 const SPAN_TYPE_LABELS: Record<string, string> = {
   workflow_run: "工作流",
   node_run: "节点",
@@ -269,8 +274,74 @@ function buildStageDetailLines(
   return lines;
 }
 
-function buildDiagnosticCards(spans: WorkflowObservationSpanVO[]): DiagnosticCard[] {
+function toTimestamp(value?: string): number | null {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function buildSpanRange(span: WorkflowObservationSpanVO): TimeRange | null {
+  const startMs = toTimestamp(span.startedAt);
+  const endMs = toTimestamp(span.endedAt);
+
+  if (startMs === null) return null;
+  if (endMs !== null && endMs >= startMs) {
+    return { startMs, endMs };
+  }
+  if (typeof span.durationMs === "number" && span.durationMs >= 0) {
+    return { startMs, endMs: startMs + span.durationMs };
+  }
+  return null;
+}
+
+function computeWallTime(spans: WorkflowObservationSpanVO[]): number {
+  const ranges = spans
+    .map(buildSpanRange)
+    .filter((range): range is TimeRange => Boolean(range))
+    .sort((left, right) => left.startMs - right.startMs);
+
+  if (ranges.length === 0) {
+    return spans.reduce((sum, span) => sum + (span.durationMs || 0), 0);
+  }
+
+  let total = 0;
+  let currentStart = ranges[0].startMs;
+  let currentEnd = ranges[0].endMs;
+
+  for (let index = 1; index < ranges.length; index += 1) {
+    const range = ranges[index];
+    if (range.startMs <= currentEnd) {
+      currentEnd = Math.max(currentEnd, range.endMs);
+      continue;
+    }
+
+    total += currentEnd - currentStart;
+    currentStart = range.startMs;
+    currentEnd = range.endMs;
+  }
+
+  total += currentEnd - currentStart;
+  return total;
+}
+
+function resolveLatestTraceId(spans: WorkflowObservationSpanVO[]): string | null {
   const flattened = flattenSpans(spans);
+  const latestSpan = [...flattened]
+    .filter((span) => span.traceId)
+    .sort((left, right) => {
+      const leftTime = toTimestamp(left.startedAt) ?? 0;
+      const rightTime = toTimestamp(right.startedAt) ?? 0;
+      return rightTime - leftTime;
+    })[0];
+
+  return latestSpan?.traceId || null;
+}
+
+function buildDiagnosticCards(spans: WorkflowObservationSpanVO[]): DiagnosticCard[] {
+  const latestTraceId = resolveLatestTraceId(spans);
+  const flattened = flattenSpans(spans).filter((span) =>
+    latestTraceId ? span.traceId === latestTraceId : true,
+  );
   const grouped = new Map<StageKey, WorkflowObservationSpanVO[]>();
 
   flattened.forEach((span) => {
@@ -285,17 +356,14 @@ function buildDiagnosticCards(spans: WorkflowObservationSpanVO[]): DiagnosticCar
   const slowestStageKey = (Object.keys(STAGE_META) as StageKey[])
     .map((stageKey) => ({
       stageKey,
-      totalDurationMs: (grouped.get(stageKey) || []).reduce(
-        (sum, span) => sum + (span.durationMs || 0),
-        0,
-      ),
+      totalDurationMs: computeWallTime(grouped.get(stageKey) || []),
     }))
     .filter((item) => item.totalDurationMs > 0)
     .sort((left, right) => right.totalDurationMs - left.totalDurationMs)[0]?.stageKey;
 
   return (Object.keys(STAGE_META) as StageKey[]).map((stageKey) => {
     const matches = grouped.get(stageKey) || [];
-    const totalDurationMs = matches.reduce((sum, span) => sum + (span.durationMs || 0), 0);
+    const totalDurationMs = computeWallTime(matches);
     const maxDurationMs = matches.reduce((max, span) => Math.max(max, span.durationMs || 0), 0);
     const representativeSpan = [...matches].sort(
       (left, right) => (right.durationMs || 0) - (left.durationMs || 0),
@@ -434,12 +502,12 @@ function DiagnosticStageCard({ card }: { card: DiagnosticCard }) {
             {card.description}
           </Typography.Paragraph>
         </div>
-        <div className="text-right">
+          <div className="text-right">
           <div className="text-3xl font-semibold text-slate-900">
             {card.hasData ? formatDuration(card.totalDurationMs) : "暂无埋点"}
           </div>
           <div className="mt-1 text-xs text-slate-500">
-            累计耗时 · 调用 {card.count} 次
+            本次运行耗时 · 调用 {card.count} 次
           </div>
         </div>
       </div>
@@ -493,7 +561,7 @@ export default function WorkflowObservabilityPanel({
             <div className="mb-4">
               <Typography.Text strong>关键阶段诊断</Typography.Text>
               <Typography.Paragraph className="!mb-0 mt-2 text-sm text-slate-500">
-                平台内树形观测会优先展示知识库检索、向量化、向量检索等关键阶段，便于定位慢点。
+                默认展示最新一次运行的阶段耗时。阶段之间存在父子包含关系，不能横向直接相加。
               </Typography.Paragraph>
             </div>
             <div className="grid gap-4 xl:grid-cols-3">
