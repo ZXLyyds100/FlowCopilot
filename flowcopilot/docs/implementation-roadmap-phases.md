@@ -26,11 +26,11 @@
 
 当前核心代码：
 
-- [JChatMind.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/agent/JChatMind.java)
-- [JChatMindFactory.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/agent/JChatMindFactory.java)
-- [ChatEventListener.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/event/listener/ChatEventListener.java)
-- [RagServiceImpl.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/service/impl/RagServiceImpl.java)
-- [SseServiceImpl.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/service/impl/SseServiceImpl.java)
+- [JChatMind.java](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/java/aliang/flowcopilot/agent/JChatMind.java)
+- [JChatMindFactory.java](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/java/aliang/flowcopilot/agent/JChatMindFactory.java)
+- [ChatEventListener.java](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/java/aliang/flowcopilot/event/listener/ChatEventListener.java)
+- [RagServiceImpl.java](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/java/aliang/flowcopilot/service/impl/RagServiceImpl.java)
+- [SseServiceImpl.java](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/java/aliang/flowcopilot/service/impl/SseServiceImpl.java)
 
 当前系统更适合：
 
@@ -229,7 +229,7 @@ LangSmith 的接入建议采用 OpenTelemetry 路线，这样 Java 服务可以�
 
 #### RAG 改造
 
-第一阶段不必完全重写 RAG，只需将现有 [RagServiceImpl.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/service/impl/RagServiceImpl.java) 包装成可供 `RetrieverNode` 调用的服务接口。
+第一阶段不必完全重写 RAG，只需将现有 [RagServiceImpl.java](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/java/aliang/flowcopilot/service/impl/RagServiceImpl.java) 包装成可供 `RetrieverNode` 调用的服务接口。
 
 ### 5.5 第一阶段前端实现内容
 
@@ -576,12 +576,12 @@ LangSmith 的接入建议采用 OpenTelemetry 路线，这样 Java 服务可以�
 
 相关核心文件：
 
-- [WorkflowGraphRegistry.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/workflow/graph/WorkflowGraphRegistry.java)
-- [WorkflowGraphDefinition.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/workflow/graph/WorkflowGraphDefinition.java)
-- [LangGraph4jGraphCompiler.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/workflow/graph/LangGraph4jGraphCompiler.java)
-- [WorkflowRuntimeService.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/workflow/service/WorkflowRuntimeService.java)
-- [ExecutionTraceRef.java](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/java/aliang/flowcopilot/model/entity/ExecutionTraceRef.java)
-- [ExecutionTraceRefMapper.xml](/Users/anastasio/Programming/JChatMind/jchatmind/src/main/resources/mapper/ExecutionTraceRefMapper.xml)
+- [WorkflowGraphRegistry.java](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/java/aliang/flowcopilot/workflow/graph/WorkflowGraphRegistry.java)
+- [WorkflowGraphDefinition.java](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/java/aliang/flowcopilot/workflow/graph/WorkflowGraphDefinition.java)
+- [LangGraph4jGraphCompiler.java](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/java/aliang/flowcopilot/workflow/graph/LangGraph4jGraphCompiler.java)
+- [WorkflowRuntimeService.java](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/java/aliang/flowcopilot/workflow/service/WorkflowRuntimeService.java)
+- [ExecutionTraceRef.java](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/java/aliang/flowcopilot/model/entity/ExecutionTraceRef.java)
+- [ExecutionTraceRefMapper.xml](/Users/anastasio/Programming/JChatMind/flowcopilot/src/main/resources/mapper/ExecutionTraceRefMapper.xml)
 
 #### 当前 Graph 执行方式说明
 
@@ -623,7 +623,7 @@ LangSmith 的接入建议采用 OpenTelemetry 路线，这样 Java 服务可以�
 
 #### 新增数据库表
 
-需要执行 [jchatmind.sql](/Users/anastasio/Programming/JChatMind/jchatmind_assert/jchatmind.sql) 中新增的 `execution_trace_ref` 表。
+需要执行 [jchatmind.sql](/Users/anastasio/Programming/JChatMind/flowcopilot_assert/jchatmind.sql) 中新增的 `execution_trace_ref` 表。
 
 如果数据库已经创建过旧表，可以只执行下面这一段：
 

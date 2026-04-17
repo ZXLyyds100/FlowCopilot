@@ -2,7 +2,7 @@
 
 ## 1. 适用范围
 
-本文对应当前主线代码，也就是已经迁移到 LangChain4j 的 `jchatmind` 后端。
+本文对应当前主线代码，也就是已经迁移到 LangChain4j 的 `flowcopilot` 后端。
 
 如果你想先了解为什么迁移、Spring AI 和 LangChain4j 的差异、配置项如何替换，请先阅读：
 
@@ -34,7 +34,7 @@ flowcopilot.llm.providers.*
 示例：
 
 ```yaml
-jchatmind:
+flowcopilot:
   llm:
     providers:
       deepseek:
